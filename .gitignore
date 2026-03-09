@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+
+node_modules/
+dist/
+build/
+.env
+
+# data配下の生データのうち、VCSに含めたくない一時的な加工ファイルなど
+data/temp/

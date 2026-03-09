@@ -1,0 +1,294 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=BIZ+UDGothic&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
+.app-container {
+  display: flex;
+  height: 100%;
+}
+
+.sidebar {
+  width: 350px;
+  background-color: #181825;
+  border-right: 1px solid #313244;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 1rem;
+  background-color: #11111b;
+  border-bottom: 1px solid #313244;
+}
+
+.header h1 {
+  font-size: 1.2rem;
+  color: #89b4fa;
+}
+
+.model-selector {
+  padding: 1rem;
+  border-bottom: 1px solid #313244;
+}
+
+.model-selector select {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: #313244;
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  outline: none;
+}
+
+.tree-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+/* Tree Component Styles */
+.tree-node {
+  margin-left: 1rem;
+  line-height: 1.6;
+}
+
+.tree-label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.tree-label:hover {
+  background-color: #313244;
+}
+
+/* Special font for Edit configurations */
+.editor-panel input {
+  font-family: 'BIZ UDGothic', sans-serif;
+  font-size: 12pt;
+}
+
+input:focus, select:focus {
+  outline: none; background-color: #313244;
+}
+
+.tree-label.selected {
+  background-color: #45475a;
+  color: #89b4fa;
+}
+
+.tree-icon {
+  margin-right: 6px;
+  font-size: 0.8rem;
+  width: 12px;
+  display: inline-block;
+}
+
+.type-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  background-color: #313244;
+  color: #a6adc8;
+}
+
+.type-badge.readWrite {
+  background-color: #eba0ac;
+  color: #11111b;
+}
+
+.type-badge.object {
+  background-color: #89b4fa;
+  color: #11111b;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.main-content.edit-mode {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.main-content > div {
+  flex: 1;
+}
+
+.details-panel {
+  padding: 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.details-panel h2 {
+  color: #f38ba8;
+  margin-bottom: 1rem;
+}
+
+.details-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  background-color: #181825;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #313244;
+}
+
+.details-table th, .details-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #313244;
+}
+
+.details-table th {
+  width: 150px;
+  font-weight: bold;
+  color: #bac2de;
+  vertical-align: top;
+  border-right: 1px solid #313244;
+  background-color: #11111b;
+}
+
+.details-table td {
+  color: #a6adc8;
+  line-height: 1.5;
+}
+
+.details-table tr:last-child th,
+.details-table tr:last-child td {
+  border-bottom: none;
+}
+
+.editor-panel {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px dashed #45475a;
+}
+
+.input-group {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.input-group input {
+  flex: 1;
+  padding: 0.5rem;
+  background-color: #313244;
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  outline: none;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  background-color: #89b4fa;
+  color: #11111b;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  background-color: #b4befe;
+}
+
+.netconf-preview {
+  height: 250px;
+  background-color: #11111b;
+  border-top: 1px solid #313244;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.netconf-preview h3 {
+  color: #a6e3a1;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+/* Changed notepad-view away from classic white notepad to match prism theme styling */
+.notepad-view {
+  width: 100%;
+  flex: 1;
+  min-height: 0; /* Important for flex children to shrink/grow properly inside column */
+  background-color: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 8px;
+  padding: 1rem;
+  color: #cdd6f4;
+  resize: vertical;
+}
+
+.node-name-box {
+  border: 1px solid #45475a;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background-color: #1e1e2e;
+  font-size: 0.9rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  display: inline-block;
+}
+
+.tabs {
+  background-color: #11111b;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0.8rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #a6adc8;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.tab-btn:hover {
+  background-color: #181825;
+  color: #cdd6f4;
+}
+
+.tab-btn.active {
+  color: #89b4fa;
+  border-bottom: 2px solid #89b4fa;
+  background-color: #1e1e2e;
+}
+
