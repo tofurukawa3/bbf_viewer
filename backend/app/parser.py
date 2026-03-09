@@ -2,202 +2,246 @@ import os
 from lxml import etree
 import logging
 from typing import Any
+import functools
 
 logger = logging.getLogger(__name__)
 
 # Data dir path relative to this backend module
-DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "cwmp-data-models")
+TARGET_PREFIXES = ["tr-181", "tr-196", "tr-262"]
 
+@functools.lru_cache(maxsize=1)
 def get_available_models():
-    """Returns a list of available XML models in the data directory."""
-    models = []
-    if os.path.exists(DATA_DIR):
-        for f in os.listdir(DATA_DIR):
-            if f.endswith(".xml"):
-                models.append(f)
-    return models
+    """Returns a list of available CWMP full XML models from the cwmp-data-models directory.
+    Only returns the latest version of each TR number."""
+    if not os.path.exists(DATA_DIR):
+        return []
+    
+    latest_models = {}
+    
+    for f in os.listdir(DATA_DIR):
+        # We target all XML files, but assign a priority weight to prefer 'full' models
+        if f.endswith(".xml") and any(f.startswith(prefix) for prefix in TARGET_PREFIXES):
+            # enforce -full.xml unless it's tr-262 which lacks one
+            if not f.endswith("-full.xml") and not f.startswith("tr-262"):
+                continue
+                
+            parts = f.split('-')
+            if len(parts) >= 3 and parts[0] == 'tr':
+                prefix = f"tr-{parts[1]}"
+                
+                # Extract version digits
+                version_parts = []
+                for p in parts[2:]:
+                    if p.isdigit():
+                        version_parts.append(int(p))
+                    else:
+                        break
+                version_tuple = tuple(version_parts)
+                
+                # Priority: full > cwmp > others
+                priority = 2 if "full.xml" in f else (1 if "cwmp.xml" in f else 0)
+                cmp_key = (version_tuple, priority)
+                
+                # Keep the one with the highest version tuple, preferring full.xml if equal
+                if prefix not in latest_models or cmp_key > latest_models[prefix][0]:
+                    latest_models[prefix] = (cmp_key, f)
+                    
+    # Return just the filenames, sorted alphabetically
+    return sorted([v[1] for v in latest_models.values()])
 
-def parse_xml_to_dict(xml_file_name: str) -> dict:
-    """
-    Given an XML file name in the data directory, parses the CWMP Data Model
-    and returns a nested dictionary representation.
-    """
-    file_path = os.path.join(DATA_DIR, xml_file_name)
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Model file {xml_file_name} not found.")
+def _find_xml_file(model_name: str) -> str:
+    path = os.path.join(DATA_DIR, model_name)
+    if os.path.exists(path):
+        return path
+    return None
 
-    tree = etree.parse(file_path)
-    root = tree.getroot()
+@functools.lru_cache(maxsize=10)
+def parse_xml_to_dict(model_name: str) -> dict:
+    file_path = _find_xml_file(model_name)
+    if not file_path:
+        raise FileNotFoundError(f"XML file not found for {model_name}")
 
-    # Find all <object> elements
+    try:
+        tree = etree.parse(file_path)
+        root = tree.getroot()
+    except Exception as e:
+        logger.error(f"Failed to parse XML: {e}")
+        return None
+
+    def get_elements_by_local_name(node, local_name):
+        return list(node.iter(f"{{*}}{local_name}"))
+
+    objects = get_elements_by_local_name(root, "object")
+
+    # Create a virtual Root node
+    root_json = {
+        "name": "/",
+        "node_type": "object",
+        "access": "readOnly",
+        "description": f"Root node for {model_name}",
+        "children": []
+    }
+
+    # Helper to map CWMP paths (e.g., Device.DeviceInfo.) to the hierarchical JSON
+    nodes_map = {"": root_json} # Map of path -> node
+
+    for obj in objects:
+        obj_name = obj.get("name", "")
+        if not obj_name:
+            continue
+            
+        access = obj.get("access", "readOnly")
+        
+        # safely extract description using wildcard namespace
+        description = ""
+        desc_elem = obj.find("{*}description")
+        if desc_elem is not None and desc_elem.text:
+            description = desc_elem.text.strip()
+
+        # Normalize paths. In BBF, objects end with "." (e.g. Device.)
+        is_list = "{i}" in obj_name
+        # Remove trailing dot for the standard node name mapping
+        clean_name = obj_name.rstrip(".")
+        
+        parts = clean_name.split(".")
+        name = parts[-1]
+
+        node = {
+            "name": name,
+            "node_type": "object",
+            "access": "readWrite" if is_list else access,
+            "detailed_type": "List" if is_list else "",
+            "description": description,
+            "children": []
+        }
+
+        # Ensure parent exists in our map, string it together
+        current_path_builder = ""
+        last_parent = root_json
+        
+        for p in parts[:-1]:
+            current_path_builder += p
+            if current_path_builder not in nodes_map:
+                # Create intermediate missing node
+                intermediate = {
+                    "name": p,
+                    "node_type": "object",
+                    "access": "readOnly",
+                    "description": "",
+                    "children": []
+                }
+                last_parent["children"].append(intermediate)
+                nodes_map[current_path_builder] = intermediate
+            last_parent = nodes_map[current_path_builder]
+            current_path_builder += "."
+
+        # Link this object node
+        nodes_map[clean_name] = node
+        last_parent["children"].append(node)
+
+        # Now parse its parameters
+        params = get_elements_by_local_name(obj, "parameter")
+        for p in params:
+            p_name = p.get("name", "")
+            p_access = p.get("access", "readOnly")
+            
+            p_desc = ""
+            desc_elem = p.find("{*}description")
+            if desc_elem is not None and desc_elem.text:
+                p_desc = desc_elem.text.strip()
+                
+            syntax_elem = p.find("{*}syntax")
+            
+            # Syntax extraction
+            data_type = "string"
+            detailed_type = ""
+            
+            if syntax_elem is not None:
+                # E.g. <string>, <unsignedInt>, <list>, <boolean>, <dataType>
+                type_kids = list(syntax_elem)
+                if type_kids:
+                    type_elem = type_kids[0]
+                    type_tag = etree.QName(type_elem).localname
+                    if type_tag == "dataType":
+                         ref = type_elem.get("ref", "")
+                         if ref:
+                             detailed_type = f"Resolved from {ref}"
+                             data_type = "string" # Fallback mapping
+                    elif type_tag == "list":
+                         data_type = "string"
+                         detailed_type = "Comma-separated list"
+                    else:
+                         data_type = type_tag # boolean, string, unsignedInt, dateTime
+                         
+                    # Check for constraints
+                    constraints = []
+                    for child in type_elem:
+                        c_tag = etree.QName(child).localname
+                        if c_tag == "size":
+                            max_len = child.get("maxLength")
+                            min_len = child.get("minLength")
+                            if max_len and min_len:
+                                constraints.append(f"length: {min_len}-{max_len}")
+                            elif max_len:
+                                constraints.append(f"max_length: {max_len}")
+                        elif c_tag == "range":
+                            min_val = child.get("minInclusive")
+                            max_val = child.get("maxInclusive")
+                            if min_val and max_val:
+                                constraints.append(f"range: [{min_val}, {max_val}]")
+                        elif c_tag == "enumeration":
+                            val = child.get("value")
+                            if val:
+                                constraints.append(val)
+                        elif c_tag == "pattern":
+                            val = child.get("value")
+                            if val:
+                                constraints.append(f"pattern {val}")
+                    
+                    # If we found enumerations, group them
+                    enums = [c for c in constraints if not c.startswith("length:") and not c.startswith("max_length:") and not c.startswith("range:") and not c.startswith("pattern ")]
+                    other_constraints = [c for c in constraints if c not in enums]
+                    
+                    if enums:
+                        detailed_type = "enum: " + ", ".join(enums)
+                        if other_constraints:
+                            detailed_type += " | " + " | ".join(other_constraints)
+                    elif other_constraints:
+                        detailed_type = " | ".join(other_constraints)
+
+            param_node = {
+                "name": p_name,
+                "node_type": "parameter",
+                "access": p_access,
+                "data_type": data_type,
+                "detailed_type": detailed_type,
+                "description": p_desc
+            }
+            node["children"].append(param_node)
+
+    return root_json
+
+def get_unified_tree() -> dict:
+    """Parses all available model files and unifies them under a single virtual Root."""
+    models = get_available_models()
     root_node = {
         "name": "Root",
         "node_type": "object",
         "access": "readOnly",
-        "description": "Root of the data model",
+        "description": "Unified view of all available BBF CWMP Models",
         "children": []
     }
-
-    for obj in root.xpath("//*[local-name()='object']"):
-        obj_name = obj.get("name", obj.get("base", ""))
-        obj_access = obj.get("access", "readOnly")
-        
-        # Build node
-        node = {
-            "name": obj_name,
-            "node_type": "object",
-            "access": obj_access,
-            "description": _get_description(obj),
-            "children": []
-        }
-        
-        # Parse parameters for this object
-        for param in obj.xpath("*[local-name()='parameter']"):
-            param_name = param.get("name", param.get("base", ""))
-            param_access = param.get("access", "readOnly")
-            
-            # get type
-            syntax_nodes = param.xpath("*[local-name()='syntax']")
-            data_type = "string"
-            detailed_type = None
-            enum_values_list = []
-            if syntax_nodes and len(syntax_nodes) > 0:
-                syntax_node = syntax_nodes[0]
-                type_node = syntax_node.find("*")
-                if type_node is not None:
-                    # e.g., <string>, <unsignedInt>
-                    # Actually type_node.xpath("local-name()") returns a list of strings
-                    type_names = type_node.xpath("local-name()")
-                    if type_names and isinstance(type_names, str):
-                        data_type = type_names
-                    elif type_names and isinstance(type_names, list) and len(type_names) > 0:
-                        data_type = type_names[0]
-                    else:
-                        # Fallback to tag without namespace
-                        data_type = type_node.tag.split("}")[-1] if "}" in type_node.tag else type_node.tag
-                        
-                    if data_type == "dataType":
-                        ref = type_node.get("ref")
-                        if ref:
-                            # Use the referenced type name (e.g. "DiagnosticsState") instead of literal "dataType"
-                            data_type = ref
-                        
-                    # Extract detailed constraints inside the type_node
-                    constraints = []
-                    
-                    # 1. Size or Length
-                    size_nodes = type_node.xpath("*[local-name()='size']")
-                    for constraint_node in size_nodes:
-                        min_len = constraint_node.get("minLength")
-                        max_len = constraint_node.get("maxLength")
-                        if min_len and max_len:
-                            constraints.append(f"length: {min_len}-{max_len}")
-                        elif max_len:
-                            constraints.append(f"max_length: {max_len}")
-                            
-                    # 2. Range
-                    range_nodes = type_node.xpath("*[local-name()='range']")
-                    for constraint_node in range_nodes:
-                        min_val = constraint_node.get("minInclusive")
-                        max_val = constraint_node.get("maxInclusive")
-                        if min_val and max_val:
-                            constraints.append(f"range: [{min_val}, {max_val}]")
-                            
-                    # 3. Enumerations
-                    enum_values_list = []
-                    enum_nodes = type_node.xpath("*[local-name()='enumeration']")
-                    if enum_nodes:
-                        enum_values_list = [n.get("value") for n in enum_nodes if n.get("value")]
-                        if enum_values_list:
-                            # if there are too many, truncate for the friendly detailed_type
-                            if len(enum_values_list) > 5:
-                                constraints.append(f"enum: {', '.join(enum_values_list[:5])} ...")
-                            else:
-                                constraints.append(f"enum: {', '.join(enum_values_list)}")
-                                
-                    # 4. Pattern
-                    pattern_nodes = type_node.xpath("*[local-name()='pattern']")
-                    if pattern_nodes:
-                        patterns = [n.get("value") for n in pattern_nodes if n.get("value")]
-                        if patterns:
-                            constraints.append("pattern")
-                            
-                    if constraints:
-                        detailed_type = f"{data_type} ({'; '.join(constraints)})"
-            
-            p_node = {
-                "name": param_name,
-                "node_type": "parameter",
-                "access": param_access,
-                "description": _get_description(param),
-                "data_type": data_type,
-                "detailed_type": detailed_type
-            }
-            if enum_values_list:
-                p_node["enum_values"] = enum_values_list
-            
-            # Extract default value if available
-            default_nodes = param.xpath(".//*[local-name()='default']")
-            if default_nodes and len(default_nodes) > 0:
-                p_node["default_value"] = default_nodes[0].get("value", "")
-
-            node["children"].append(p_node)
-
-        _insert_into_tree(root_node, obj_name, node)
-
-    return root_node
-
-def _get_description(element) -> str:
-    desc = element.xpath("*[local-name()='description']")
-    if desc and len(desc) > 0:
-        return desc[0].text.strip() if desc[0].text else ""
-    return ""
-
-def _insert_into_tree(root, path, node):
-    """
-    Very basic hierarchical inserter based on dot notation.
-    """
-    if not node["name"]:
-        # Skip completely empty nodes (usually abstract base objects without names)
-        return
-
-    # Strip trailing dot from path strings like "Device." -> "Device" to prevent empty parts
-    clean_path = path.rstrip(".")
-    parts = [p for p in clean_path.split(".") if p]
     
-    if len(parts) <= 1:
-        root["children"].append(node)
-        return
-        
-    current = root["children"]
-    for i, part in enumerate(parts[:-1]):
-        # Find existing node or create dummy
-        # Append dot only for display logic, but checking without dot is safer
-        found = next((n for n in current if n["name"] == part or n["name"] == part + "."), None)
-        if not found:
-            found = {
-                "name": part + ".", 
-                "node_type": "object",
-                "access": "readOnly",
-                "description": "",
-                "children": []
-            }
-            current.append(found)
-        if "children" not in found:
-            found["children"] = []
-        current = found["children"]
-        
-    # Overwrite dummy or just append
-    existing = next((n for n in current if n["name"] == node["name"]), None)
-    if existing:
-        # Prevent appending children if this is an empty param shell
-        if node["children"]:
-             existing["children"].extend(node["children"])
-        if node["description"]:
-             existing["description"] = node["description"]
-        existing["access"] = node["access"]
-    else:
-        current.append(node)
+    for m in models:
+        try:
+            data = parse_xml_to_dict(m)
+            # data is the module node, we can append it directly
+            root_node["children"].append(data)
+        except Exception as e:
+            logger.warning(f"Skipping {m} in unified tree due to error: {e}")
+            
+    return root_node
 
 def generate_netconf_edit_config(target_path: str, value: Any, existing_xml: str = None, list_instances: Any = None) -> str:
     """

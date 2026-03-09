@@ -20,12 +20,19 @@ def list_models():
 
 @app.get("/models/{model_name}")
 def get_model(model_name: str):
-    """Retrieves the parsed hierarchical JSON for a given XML model name."""
+    """Retrieves the parsed hierarchical JSON for a given YANG model name. Or 'unified' to get all."""
     try:
+        if model_name == "unified":
+            # We no longer support unified virtual root for the massive CWMP XML files,
+            # but keep the endpoint name for frontend compatibility if needed.
+            # However, now we expect the frontend to query specific files again.
+            return parser.parse_xml_to_dict("tr-181-2-16-0-cwmp-full.xml")
+
+        # If the user requests a specific model
         data = parser.parse_xml_to_dict(model_name)
+        if data is None:
+            raise HTTPException(status_code=404, detail="Model file not found or failed to parse")
         return data
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Model file not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

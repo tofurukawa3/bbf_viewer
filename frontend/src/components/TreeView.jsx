@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 
 const TreeView = ({ node, path = "", onSelectNode, searchTerm = "" }) => {
   const [expanded, setExpanded] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   // Auto-expand if searchTerm matches current or children
   useEffect(() => {
     if (searchTerm && hasMatch(node, searchTerm.toLowerCase())) {
       setExpanded(true);
+      setVisibleCount(node.children ? node.children.length : 0); // Show all if searching
     } else if (!searchTerm) {
       setExpanded(false);
+      setVisibleCount(50);
     }
   }, [searchTerm, node]);
 
@@ -64,7 +67,7 @@ const TreeView = ({ node, path = "", onSelectNode, searchTerm = "" }) => {
       
       {expanded && hasChildren && (
         <div className="tree-children">
-          {node.children.map((child, index) => (
+          {node.children.slice(0, visibleCount).map((child, index) => (
             <TreeView 
               key={`${currentPath}-${index}`} 
               node={child} 
@@ -73,10 +76,26 @@ const TreeView = ({ node, path = "", onSelectNode, searchTerm = "" }) => {
               searchTerm={searchTerm}
             />
           ))}
+          {node.children.length > visibleCount && !searchTerm && (
+            <button 
+              className="show-more-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setVisibleCount(prev => prev + 50);
+              }}
+              style={{
+                background: 'none', border: 'none', color: '#89b4fa', 
+                cursor: 'pointer', fontSize: '0.85rem', padding: '4px 8px',
+                marginTop: '4px', textAlign: 'left', outline: 'none'
+              }}
+            >
+              Show More ({node.children.length - visibleCount} hidden)...
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 };
 
-export default TreeView;
+export default React.memo(TreeView);

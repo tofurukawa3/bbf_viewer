@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import TreeView from './components/TreeView'
 import Editor from './components/Editor'
 import NetconfPreview from './components/NetconfPreview'
@@ -31,13 +31,11 @@ function filterForEditMode(node) {
 }
 
 function App() {
-  const [models, setModels] = useState([])
+  const [availableModels, setAvailableModels] = useState([])
   const [selectedModel, setSelectedModel] = useState("")
   const [treeData, setTreeData] = useState(null)
-  
   const [selectedNode, setSelectedNode] = useState(null)
   const [selectedPath, setSelectedPath] = useState("")
-  
   const [netconfXml, setNetconfXml] = useState("")
   
   // Search and Mode state
@@ -49,18 +47,18 @@ function App() {
     fetch(`${API_BASE_URL}/models`)
       .then(res => res.json())
       .then(data => {
-        setModels(data.models || [])
+        setAvailableModels(data.models || [])
         if (data.models && data.models.length > 0) {
           setSelectedModel(data.models[0])
         }
       })
-      .catch(err => console.error("Failed to fetch models", err))
+      .catch(err => console.error("Failed to fetch models list", err))
   }, [])
 
-  // Fetch tree data when model changes
+  // Fetch specific tree data when model changes
   useEffect(() => {
-    if (!selectedModel) return
-
+    if (!selectedModel) return;
+    
     setTreeData(null)
     setSelectedNode(null)
     setSelectedPath("")
@@ -73,11 +71,16 @@ function App() {
       .catch(err => console.error(`Failed to fetch model ${selectedModel}`, err))
   }, [selectedModel])
 
-  const handleSelectNode = (node, path) => {
+  const handleSelectNode = useCallback((node, path) => {
     setSelectedNode(node)
-    // The TreeView builds path recursively. E.g "Root.Device.FAP.Control."
-    // Let's strip the leading "Root." to make it cleaner for the Netconf target
-    const cleanPath = path.startsWith("Root.") ? path.substring(5) : path
+    
+    // For CWMP XML, objects are usually written like "Device.DeviceInfo."
+    // We want to combine them logically.
+    // If the path is empty, we just use the selected node's name
+    let cleanPath = path;
+    if (cleanPath.startsWith("/")) {
+      cleanPath = cleanPath.replace(/^\/?\.?/, "");
+    }
     
     // Append node name for the final path, preventing double dots
     const finalPath = cleanPath 
@@ -85,9 +88,9 @@ function App() {
       : node.name;
       
     setSelectedPath(finalPath)
-  }
+  }, []);
 
-  const handleGenerateEdit = async (path, value, listInstances = null) => {
+  const handleGenerateEdit = useCallback(async (path, value, listInstances = null) => {
     try {
       const response = await fetch(`${API_BASE_URL}/netconf/edit-config`, {
         method: 'POST',
@@ -113,7 +116,7 @@ function App() {
       console.error("Failed to generate edit config", e);
       setNetconfXml(`Error generating XML: ${e.message}`);
     }
-  }
+  }, [selectedModel, netconfXml]);
 
   const displayedTree = useMemo(() => {
     if (!treeData) return null;
@@ -146,16 +149,14 @@ function App() {
         </div>
 
         <div className="model-selector">
+          <label htmlFor="modelSelect" style={{ padding: "0.2rem", color: "#a6adc8"}}>Select Model: </label>
           <select 
+            id="modelSelect"
             value={selectedModel} 
-            onChange={(e) => {
-               setSelectedModel(e.target.value)
-               setSelectedNode(null)
-               setNetconfXml("")
-            }}
+            onChange={(e) => setSelectedModel(e.target.value)}
           >
-            {models.map(m => (
-              <option key={m} value={m}>{m}</option>
+            {availableModels.map(name => (
+              <option key={name} value={name}>{name}</option>
             ))}
           </select>
           <input 
@@ -169,24 +170,12 @@ function App() {
         </div>
         <div className="tree-container">
           {displayedTree ? (
-             displayedTree.name === "Root" && displayedTree.children ? (
-               displayedTree.children.map((childNode, idx) => (
-                 <TreeView 
-                   key={idx}
-                   node={childNode} 
-                   path="Root" 
-                   onSelectNode={handleSelectNode}
-                   searchTerm={searchTerm}
-                 />
-               ))
-             ) : (
-               <TreeView 
-                 node={displayedTree} 
-                 path="Root" 
-                 onSelectNode={handleSelectNode}
-                 searchTerm={searchTerm}
-               />
-             )
+             <TreeView 
+               node={displayedTree} 
+               path="" 
+               onSelectNode={handleSelectNode}
+               searchTerm={searchTerm}
+             />
           ) : treeData ? (
              <div style={{ color: '#6c7086', textAlign: 'center', marginTop: '2rem' }}>No writable parameters found.</div>
           ) : (
