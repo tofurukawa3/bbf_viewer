@@ -39,7 +39,11 @@ const TreeView = ({ node, path = "", onSelectNode, searchTerm = "" }) => {
   };
 
   const hasChildren = node.children && node.children.length > 0;
-  const currentPath = path ? `${path}.${node.name}` : node.name;
+  
+  // Guard against double dots if path already ends with a dot (common in CWMP)
+  const currentPath = path 
+    ? (path.endsWith('.') ? `${path}${node.name}` : `${path}.${node.name}`) 
+    : node.name;
 
   return (
     <div className="tree-node">

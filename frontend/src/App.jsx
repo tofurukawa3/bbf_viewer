@@ -78,11 +78,16 @@ function App() {
     // The TreeView builds path recursively. E.g "Root.Device.FAP.Control."
     // Let's strip the leading "Root." to make it cleaner for the Netconf target
     const cleanPath = path.startsWith("Root.") ? path.substring(5) : path
-    // Append node name for the final path
-    setSelectedPath(cleanPath ? `${cleanPath}.${node.name}` : node.name)
+    
+    // Append node name for the final path, preventing double dots
+    const finalPath = cleanPath 
+      ? (cleanPath.endsWith('.') ? `${cleanPath}${node.name}` : `${cleanPath}.${node.name}`)
+      : node.name;
+      
+    setSelectedPath(finalPath)
   }
 
-  const handleGenerateEdit = async (path, value) => {
+  const handleGenerateEdit = async (path, value, listInstances = null) => {
     try {
       const response = await fetch(`${API_BASE_URL}/netconf/edit-config`, {
         method: 'POST',
@@ -92,7 +97,9 @@ function App() {
         body: JSON.stringify({
           model_name: selectedModel,
           target_path: path,
-          value: value
+          value: value,
+          existing_xml: netconfXml || null,
+          list_instances: listInstances
         })
       });
 

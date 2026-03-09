@@ -32,6 +32,10 @@ def get_model(model_name: str):
 @app.post("/netconf/edit-config", response_model=models.EditMessageResponse)
 def create_netconf_edit(payload: models.EditMessageRequest):
     """Generates a generic NETCONF edit-config fragment for the edited target paths."""
-    xml_str = parser.generate_netconf_edit_config(payload.target_path, payload.value)
+    xml_str = parser.generate_netconf_edit_config(
+        payload.target_path, 
+        payload.value, 
+        payload.existing_xml,
+        payload.list_instances
+    )
     return models.EditMessageResponse(xml_payload=xml_str)
-
