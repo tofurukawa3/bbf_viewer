@@ -247,19 +247,21 @@ def generate_netconf_edit_config(target_path: str, value: Any, existing_xml: str
     """
     Generates a basic NETCONF <edit-config> XML snippet.
     Appends to existing_xml if provided and valid.
+    Properly handles multiple instances if index matches or diverges.
     """
-    parts = [p for p in target_path.split(".") if p]
+    parts_raw = [p for p in target_path.split(".") if p]
     
-    # Process {i} placeholders
-    processed_parts = []
-    has_instance = False
-    for p in parts:
+    # Process {i} placeholders and remember which parts are lists
+    parts = []
+    list_node_indices = set()
+    
+    for p in parts_raw:
         if p == "{i}":
-            has_instance = True
+            if len(parts) > 0:
+                list_node_indices.add(len(parts) - 1)
             continue
-        processed_parts.append(p)
-    parts = processed_parts
-    
+        parts.append(p)
+        
     if existing_xml:
         try:
             parser_obj = etree.XMLParser(remove_blank_text=True)
@@ -274,42 +276,47 @@ def generate_netconf_edit_config(target_path: str, value: Any, existing_xml: str
                 
                 for i, part in enumerate(parts):
                     found = None
+                    is_list_node = (i in list_node_indices)
+                    
                     for child in current:
-                        # Comments and ProcessingInstructions have non-string tags
                         if not isinstance(child.tag, str):
                             continue
                         tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                        
                         if tag == part:
-                            found = child
-                            break
-                            
+                            # If this is a list node, ensure we only match if the index equals our list_instances
+                            if is_list_node and list_instances is not None and str(list_instances).strip():
+                                index_match = False
+                                for sib in child:
+                                    if isinstance(sib.tag, str) and sib.tag.endswith("index") and sib.text == str(list_instances):
+                                        index_match = True
+                                        break
+                                if index_match:
+                                    found = child
+                                    break
+                            else:
+                                found = child
+                                break
+                                
                     if i == len(parts) - 1:
                         if found is not None:
                             found.text = str(value)
                         else:
                             new_node = etree.SubElement(current, part)
                             new_node.text = str(value)
-                            if has_instance:
-                                if list_instances is not None and str(list_instances).strip() != "":
-                                    # Ensure we don't duplicate the index tag if it's already there
-                                    has_idx = False
-                                    for sib in current:
-                                        if isinstance(sib.tag, str) and sib.tag.endswith("index") and sib.text == str(list_instances):
-                                            has_idx = True
-                                            break
-                                    if not has_idx:
-                                        idx_elem = etree.Element("index")
-                                        idx_elem.text = str(list_instances)
-                                        current.insert(0, idx_elem)
-                                else:
-                                    new_node.addprevious(etree.Comment(" [Insert Instance Keys Here, e.g. <index>1</index>] "))
+                            # Note: The target_path for a parameter typically shouldn't end with `{i}` so it wouldn't be a list node
                     else:
                         if found is not None:
                             current = found
                         else:
                             current = etree.SubElement(current, part)
-                            if has_instance and i == len(parts) - 2:
-                                current.append(etree.Comment(" [Insert Instance Keys Here, e.g. <index>1</index>] "))
+                            if is_list_node:
+                                if list_instances is not None and str(list_instances).strip():
+                                    idx_elem = etree.Element("index")
+                                    idx_elem.text = str(list_instances)
+                                    current.insert(0, idx_elem)
+                                else:
+                                    current.append(etree.Comment(" [Insert Instance Keys Here, e.g. <index>1</index>] "))
                 
                 return etree.tostring(root, pretty_print=True, encoding="UTF-8").decode("utf-8")
         except Exception as e:
@@ -329,12 +336,16 @@ def generate_netconf_edit_config(target_path: str, value: Any, existing_xml: str
     closing_tags = []
     
     for i, part in enumerate(parts):
+        is_list_node = (i in list_node_indices)
         if i == len(parts) - 1:
-            if has_instance:
-                xml_str += f'{indent}<!-- [Insert Instance Keys Here, e.g. <index>1</index>] -->\n'
             xml_str += f'{indent}<{part}>{value}</{part}>\n'
         else:
             xml_str += f'{indent}<{part}>\n'
+            if is_list_node:
+                if list_instances is not None and str(list_instances).strip():
+                    xml_str += f'{indent}  <index>{list_instances}</index>\n'
+                else:
+                    xml_str += f'{indent}  <!-- [Insert Instance Keys Here, e.g. <index>1</index>] -->\n'
             closing_tags.insert(0, part)
             indent += "  "
             
