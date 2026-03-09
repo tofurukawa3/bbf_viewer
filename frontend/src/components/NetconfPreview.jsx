@@ -31,15 +31,38 @@ const NetconfPreview = ({ xmlPayload }) => {
     }
   };
 
+  const handleCopy = () => {
+    if (!code.trim()) return;
+    navigator.clipboard.writeText(code).then(() => {
+      setLintStatus({ type: 'success', message: "✨ Copied to clipboard!" });
+      setTimeout(() => setLintStatus(null), 3000);
+    }).catch(err => {
+      setLintStatus({ type: 'error', message: "Failed to copy: " + err });
+    });
+  };
+
+  const handleClear = () => {
+    setCode("");
+    setLintStatus(null);
+  };
+
   if (!xmlPayload && !code) return null;
 
   return (
     <div className="details-panel" style={{ display: 'flex', flexDirection: 'column', minWidth: '400px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h3 style={{ color: '#89b4fa', margin: 0 }}>Generated NETCONF &lt;edit-config&gt;</h3>
-        <button onClick={handleLint} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}>
-          ✓ Lint XML
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleLint} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}>
+            ✓ Lint XML
+          </button>
+          <button onClick={handleCopy} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', backgroundColor: '#a6e3a1', color: '#11111b' }}>
+            📋 Copy
+          </button>
+          <button onClick={handleClear} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', backgroundColor: '#f38ba8', color: '#11111b' }}>
+            🗑️ Clear
+          </button>
+        </div>
       </div>
 
       {lintStatus && (
