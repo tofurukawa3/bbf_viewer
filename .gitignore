@@ -9,3 +9,15 @@ build/
 
 # data配下の生データのうち、VCSに含めたくない一時的な加工ファイルなど
 data/temp/
+
+# AI Assistants and Tools
+.gemini/
+.cline/
+.cursorrules
+.cursor/
+.aider*
+.claude*
+.cascade/
+
+# Documentation
+AGENT.md
