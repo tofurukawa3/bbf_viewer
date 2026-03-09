@@ -1,0 +1,25 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] 窶ｺ tests\app.spec.ts:5:7 窶ｺ BBF Viewer Applicaton E2E tests 窶ｺ should load the frontend and connect to backend
+[1A[2K  1) [chromium] 窶ｺ tests\app.spec.ts:5:7 窶ｺ BBF Viewer Applicaton E2E tests 窶ｺ should load the frontend and connect to backend 
+
+    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5174/
+    Call log:
+    [2m  - navigating to "http://localhost:5174/", waiting until "load"[22m
+
+
+       5 |   test('should load the frontend and connect to backend', async ({ page }) => {
+       6 |     // 1. Check if the frontend server is reachable
+    >  7 |     await page.goto('/');
+         |                ^
+       8 |
+       9 |     // 2. Validate the title
+      10 |     await expect(page).toHaveTitle(/BBF Viewer/);
+        at C:\Users\to-fu\Documents\project\bbf_viewer\e2e\tests\app.spec.ts:7:16
+
+
+[1A[2K  1 failed
+    [chromium] 窶ｺ tests\app.spec.ts:5:7 窶ｺ BBF Viewer Applicaton E2E tests 窶ｺ should load the frontend and connect to backend 
+
+[36m  Serving HTML report at http://localhost:9323. Press Ctrl+C to quit.[39m
