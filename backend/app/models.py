@@ -19,6 +19,7 @@ class EditMessageRequest(BaseModel):
     model_name: str
     target_path: str
     value: Any
+    datatype: Optional[str] = "string" # Used for xsi:type in CWMP
     existing_xml: Optional[str] = None
     list_instances: Optional[Any] = None # e.g. list of {"i": "1"} strings or something, let's just make it Any or List[str]
 

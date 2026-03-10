@@ -3,7 +3,7 @@ import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
 
-const NetconfPreview = ({ xmlPayload }) => {
+const CwmpPreview = ({ xmlPayload }) => {
   const [code, setCode] = useState(xmlPayload || "");
   const [lintStatus, setLintStatus] = useState(null);
 
@@ -49,9 +49,9 @@ const NetconfPreview = ({ xmlPayload }) => {
   if (!xmlPayload && !code) return null;
 
   return (
-    <div className="details-panel" style={{ display: 'flex', flexDirection: 'column', minWidth: '400px' }}>
+    <div className="details-panel cwmp-preview" style={{ display: 'flex', flexDirection: 'column', minWidth: '400px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h3 style={{ color: '#89b4fa', margin: 0 }}>Generated NETCONF &lt;edit-config&gt;</h3>
+        <h3 style={{ color: '#89b4fa', margin: 0 }}>Generated CWMP SetParameterValues</h3>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={handleLint} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}>
             ✓ Lint XML
@@ -99,4 +99,4 @@ const NetconfPreview = ({ xmlPayload }) => {
   );
 };
 
-export default NetconfPreview;
+export default CwmpPreview;

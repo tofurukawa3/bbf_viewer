@@ -36,12 +36,13 @@ def get_model(model_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/netconf/edit-config", response_model=models.EditMessageResponse)
-def create_netconf_edit(payload: models.EditMessageRequest):
-    """Generates a generic NETCONF edit-config fragment for the edited target paths."""
-    xml_str = parser.generate_netconf_edit_config(
+@app.post("/cwmp/set-parameter-values", response_model=models.EditMessageResponse)
+def create_cwmp_set_parameter_values(payload: models.EditMessageRequest):
+    """Generates a TR-069 CWMP SetParameterValues envelope for the edited target paths."""
+    xml_str = parser.generate_cwmp_set_parameter_values(
         payload.target_path, 
         payload.value, 
+        payload.datatype,
         payload.existing_xml,
         payload.list_instances
     )

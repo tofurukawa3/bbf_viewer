@@ -248,10 +248,10 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
 
       {showEditor && (
         <div className="editor-panel">
-          <h3 style={{ color: '#89b4fa', marginBottom: '1rem' }}>Edit Configuration (NETCONF)</h3>
+          <h3 style={{ color: '#89b4fa', marginBottom: '1rem' }}>Edit Configuration (CWMP SetParameterValues)</h3>
           {isListInstance ? null : (
             <p style={{ color: '#a6adc8', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              Set a new value for this parameter to generate a NETCONF &lt;edit-config&gt; message.
+              Set a new value for this parameter to generate a CWMP SetParameterValues SOAP envelope.
             </p>
           )}
           

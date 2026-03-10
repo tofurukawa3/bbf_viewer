@@ -72,6 +72,63 @@ def parse_xml_to_dict(model_name: str) -> dict:
     def get_elements_by_local_name(node, local_name):
         return list(node.iter(f"{{*}}{local_name}"))
 
+    # TR-106 Global DataType Parsing
+    global_datatypes = {}
+    for dt_elem in get_elements_by_local_name(root, "dataType"):
+        dt_name = dt_elem.get("name")
+        if not dt_name: # skip inner <dataType ref="...">
+            continue
+            
+        dt_base = dt_elem.get("base")
+        underlying_type = None
+        constraints = []
+        for child in dt_elem:
+            c_tag = etree.QName(child).localname
+            if c_tag in ["string", "unsignedInt", "int", "boolean", "dateTime", "base64", "hexBinary", "list", "unsignedLong", "long"]:
+                underlying_type = c_tag
+                for grand_child in child:
+                    gc_tag = etree.QName(grand_child).localname
+                    if gc_tag == "size":
+                        max_len = grand_child.get("maxLength")
+                        min_len = grand_child.get("minLength")
+                        if max_len and min_len:
+                            constraints.append(f"length: {min_len}-{max_len}")
+                        elif max_len:
+                            constraints.append(f"max_length: {max_len}")
+                    elif gc_tag == "range":
+                        min_val = grand_child.get("minInclusive")
+                        max_val = grand_child.get("maxInclusive")
+                        if min_val and max_val:
+                            constraints.append(f"range: [{min_val}, {max_val}]")
+                    elif gc_tag == "enumeration":
+                        val = grand_child.get("value")
+                        if val:
+                            constraints.append(val)
+                    elif gc_tag == "pattern":
+                        val = grand_child.get("value")
+                        if val:
+                            constraints.append(f"pattern {val}")
+                        
+        global_datatypes[dt_name] = {
+            "name": dt_name,
+            "base": dt_base,
+            "underlying_type": underlying_type,
+            "constraints": constraints
+        }
+        
+    # Resolve bases
+    for _ in range(3):
+        for dt_name, dt_info in global_datatypes.items():
+            if dt_info["base"] and dt_info["base"] in global_datatypes:
+                base_info = global_datatypes[dt_info["base"]]
+                if dt_info["underlying_type"] is None:
+                    dt_info["underlying_type"] = base_info["underlying_type"]
+                # append base constraints before local constraints
+                # Use a new list to prevent accumulating wildly in place
+                combined_constraints = list(dict.fromkeys(base_info["constraints"] + dt_info["constraints"]))
+                dt_info["constraints"] = combined_constraints
+                dt_info["base"] = base_info["base"]
+
     objects = get_elements_by_local_name(root, "object")
 
     # Create a virtual Root node
@@ -152,30 +209,38 @@ def parse_xml_to_dict(model_name: str) -> dict:
                 p_desc = desc_elem.text.strip()
                 
             syntax_elem = p.find("{*}syntax")
-            
-            # Syntax extraction
+            default_value = ""
             data_type = "string"
             detailed_type = ""
             
             if syntax_elem is not None:
-                # E.g. <string>, <unsignedInt>, <list>, <boolean>, <dataType>
-                type_kids = list(syntax_elem)
+                default_elem = syntax_elem.find("{*}default")
+                if default_elem is not None:
+                    default_value = default_elem.get("value", "")
+                    
+                type_kids = [c for c in syntax_elem if etree.QName(c).localname != "default"]
                 if type_kids:
                     type_elem = type_kids[0]
                     type_tag = etree.QName(type_elem).localname
+                    constraints = []
+                    
                     if type_tag == "dataType":
                          ref = type_elem.get("ref", "")
-                         if ref:
+                         if ref and ref in global_datatypes:
+                             dt_info = global_datatypes[ref]
+                             data_type = dt_info["underlying_type"] or "string"
+                             constraints = dt_info["constraints"].copy()
+                             detailed_type = f"[{ref}]"
+                         elif ref:
                              detailed_type = f"Resolved from {ref}"
-                             data_type = "string" # Fallback mapping
+                             data_type = "string"
                     elif type_tag == "list":
                          data_type = "string"
                          detailed_type = "Comma-separated list"
                     else:
                          data_type = type_tag # boolean, string, unsignedInt, dateTime
                          
-                    # Check for constraints
-                    constraints = []
+                    # Check for constraints on parameter itself
                     for child in type_elem:
                         c_tag = etree.QName(child).localname
                         if c_tag == "size":
@@ -199,16 +264,25 @@ def parse_xml_to_dict(model_name: str) -> dict:
                             if val:
                                 constraints.append(f"pattern {val}")
                     
-                    # If we found enumerations, group them
-                    enums = [c for c in constraints if not c.startswith("length:") and not c.startswith("max_length:") and not c.startswith("range:") and not c.startswith("pattern ")]
-                    other_constraints = [c for c in constraints if c not in enums]
+                    enums = []
+                    other_constraints = []
+                    for c in constraints:
+                         if not c.startswith("length:") and not c.startswith("max_length:") and not c.startswith("range:") and not c.startswith("pattern "):
+                             if c not in enums:
+                                 enums.append(c)
+                         else:
+                             if c not in other_constraints:
+                                 other_constraints.append(c)
                     
+                    details_parts = []
+                    if detailed_type:
+                        details_parts.append(detailed_type)
                     if enums:
-                        detailed_type = "enum: " + ", ".join(enums)
-                        if other_constraints:
-                            detailed_type += " | " + " | ".join(other_constraints)
-                    elif other_constraints:
-                        detailed_type = " | ".join(other_constraints)
+                        details_parts.append("enum: " + ", ".join(enums))
+                    if other_constraints:
+                        details_parts.append(" | ".join(other_constraints))
+                        
+                    detailed_type = " | ".join(details_parts) if details_parts else ""
 
             param_node = {
                 "name": p_name,
@@ -216,6 +290,7 @@ def parse_xml_to_dict(model_name: str) -> dict:
                 "access": p_access,
                 "data_type": data_type,
                 "detailed_type": detailed_type,
+                "default_value": default_value,
                 "description": p_desc
             }
             node["children"].append(param_node)
@@ -243,118 +318,121 @@ def get_unified_tree() -> dict:
             
     return root_node
 
-def generate_netconf_edit_config(target_path: str, value: Any, existing_xml: str = None, list_instances: Any = None) -> str:
+def _map_datatype_to_xsd(datatype: str) -> str:
+    """Helper to map BBF data types to xsd types for xsi:type."""
+    dt = (datatype or "string").lower()
+    if dt == "boolean":
+        return "xsd:boolean"
+    elif dt == "unsignedint":
+        return "xsd:unsignedInt"
+    elif dt == "int":
+        return "xsd:int"
+    elif dt == "datetime":
+        return "xsd:dateTime"
+    elif dt == "base64":
+        return "xsd:base64Binary"
+    else:
+        return "xsd:string"
+
+def generate_cwmp_set_parameter_values(target_path: str, value: Any, datatype: str = "string", existing_xml: str = None, list_instances: Any = None) -> str:
     """
-    Generates a basic NETCONF <edit-config> XML snippet.
-    Appends to existing_xml if provided and valid.
-    Properly handles multiple instances if index matches or diverges.
+    Generates a CWMP SetParameterValues SOAP 1.1 XML snippet.
+    Appends the new ParameterValueStruct to existing_xml if provided.
+    Properly handles inserting list_instances into the path e.g. `{i}` -> `1`.
     """
-    parts_raw = [p for p in target_path.split(".") if p]
-    
-    # Process {i} placeholders and remember which parts are lists
-    parts = []
-    list_node_indices = set()
-    
-    for p in parts_raw:
-        if p == "{i}":
-            if len(parts) > 0:
-                list_node_indices.add(len(parts) - 1)
-            continue
-        parts.append(p)
-        
+    # Replace {i} with the actual instance number if provided
+    actual_path = target_path
+    if "{i}" in actual_path:
+        if list_instances is not None and str(list_instances).strip():
+            actual_path = actual_path.replace("{i}", str(list_instances))
+        else:
+            # Leave a placeholder if missing
+            actual_path = actual_path.replace("{i}", "[INSERT_INSTANCE_INDEX]")
+            
+    # Ensure parameter path ends appropriately (mostly they don't have trailing dot for parameters, but BBF paths might just be correct as passed)
+
+    xsd_type = _map_datatype_to_xsd(datatype)
+
+    SOAP_ENV = "http://schemas.xmlsoap.org/soap/envelope/"
+    SOAP_ENC = "http://schemas.xmlsoap.org/soap/encoding/"
+    XSD = "http://www.w3.org/2001/XMLSchema"
+    XSI = "http://www.w3.org/2001/XMLSchema-instance"
+    CWMP = "urn:dslforum-org:cwmp-1-0"
+
+    nsmap = {
+        "soapenv": SOAP_ENV,
+        "soapenc": SOAP_ENC,
+        "xsd": XSD,
+        "xsi": XSI,
+        "cwmp": CWMP
+    }
+
     if existing_xml:
         try:
             parser_obj = etree.XMLParser(remove_blank_text=True)
             root = etree.fromstring(existing_xml.encode('utf-8'), parser_obj)
             
-            nsmap = {"nc": "urn:ietf:params:xml:ns:netconf:base:1.0"}
-            config_node = root.xpath(".//nc:config", namespaces=nsmap)
+            # Find the ParameterList node
+            param_list_nodes = root.xpath(".//ParameterList")
             
-            if config_node:
-                config = config_node[0]
-                current = config
+            if param_list_nodes:
+                param_list = param_list_nodes[0]
                 
-                for i, part in enumerate(parts):
-                    found = None
-                    is_list_node = (i in list_node_indices)
-                    
-                    for child in current:
-                        if not isinstance(child.tag, str):
-                            continue
-                        tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                # Check if this parameter already exists, if so, update its Value
+                existing_param = None
+                for param_struct in param_list.findall("ParameterValueStruct"):
+                    name_node = param_struct.find("Name")
+                    if name_node is not None and name_node.text == actual_path:
+                        existing_param = param_struct
+                        break
                         
-                        if tag == part:
-                            # If this is a list node, ensure we only match if the index equals our list_instances
-                            if is_list_node and list_instances is not None and str(list_instances).strip():
-                                index_match = False
-                                for sib in child:
-                                    if isinstance(sib.tag, str) and sib.tag.endswith("index") and sib.text == str(list_instances):
-                                        index_match = True
-                                        break
-                                if index_match:
-                                    found = child
-                                    break
-                            else:
-                                found = child
-                                break
-                                
-                    if i == len(parts) - 1:
-                        if found is not None:
-                            found.text = str(value)
-                        else:
-                            new_node = etree.SubElement(current, part)
-                            new_node.text = str(value)
-                            # Note: The target_path for a parameter typically shouldn't end with `{i}` so it wouldn't be a list node
-                    else:
-                        if found is not None:
-                            current = found
-                        else:
-                            current = etree.SubElement(current, part)
-                            if is_list_node:
-                                if list_instances is not None and str(list_instances).strip():
-                                    idx_elem = etree.Element("index")
-                                    idx_elem.text = str(list_instances)
-                                    current.insert(0, idx_elem)
-                                else:
-                                    current.append(etree.Comment(" [Insert Instance Keys Here, e.g. <index>1</index>] "))
+                if existing_param is not None:
+                    value_node = existing_param.find("Value")
+                    if value_node is not None:
+                        value_node.text = str(value)
+                        # Optionally update xsi:type here, but might just leave it
+                else:
+                    # Append new ParameterValueStruct
+                    struct = etree.SubElement(param_list, "ParameterValueStruct")
+                    name_elem = etree.SubElement(struct, "Name")
+                    name_elem.text = actual_path
+                    val_elem = etree.SubElement(struct, "Value")
+                    # setting xsi:type
+                    val_elem.set(f"{{{XSI}}}type", xsd_type)
+                    val_elem.text = str(value)
+                    
+                    # Update arrayType count
+                    current_count = len(param_list.findall("ParameterValueStruct"))
+                    param_list.set(f"{{{SOAP_ENC}}}arrayType", f"cwmp:ParameterValueStruct[{current_count}]")
                 
                 return etree.tostring(root, pretty_print=True, encoding="UTF-8").decode("utf-8")
         except Exception as e:
             import traceback
             traceback.print_exc()
-            logger.error(f"Failed to append to existing XML: {e}")
+            logger.error(f"Failed to append to existing CWMP XML: {e}")
 
-    xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    xml_str += '<rpc message-id="101" xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">\n'
-    xml_str += '  <edit-config>\n'
-    xml_str += '    <target>\n'
-    xml_str += '      <running/>\n'
-    xml_str += '    </target>\n'
-    xml_str += '    <config>\n'
+    # Generate a new envelope from scratch
+    root = etree.Element(f"{{{SOAP_ENV}}}Envelope", nsmap=nsmap)
+    header = etree.SubElement(root, f"{{{SOAP_ENV}}}Header")
+    cwmp_id = etree.SubElement(header, f"{{{CWMP}}}ID")
+    cwmp_id.set(f"{{{SOAP_ENV}}}mustUnderstand", "1")
+    cwmp_id.text = "1"
     
-    indent = "      "
-    closing_tags = []
+    body = etree.SubElement(root, f"{{{SOAP_ENV}}}Body")
+    spv = etree.SubElement(body, f"{{{CWMP}}}SetParameterValues")
     
-    for i, part in enumerate(parts):
-        is_list_node = (i in list_node_indices)
-        if i == len(parts) - 1:
-            xml_str += f'{indent}<{part}>{value}</{part}>\n'
-        else:
-            xml_str += f'{indent}<{part}>\n'
-            if is_list_node:
-                if list_instances is not None and str(list_instances).strip():
-                    xml_str += f'{indent}  <index>{list_instances}</index>\n'
-                else:
-                    xml_str += f'{indent}  <!-- [Insert Instance Keys Here, e.g. <index>1</index>] -->\n'
-            closing_tags.insert(0, part)
-            indent += "  "
-            
-    for tag in closing_tags:
-        indent = indent[:-2]
-        xml_str += f'{indent}</{tag}>\n'
-        
-    xml_str += '    </config>\n'
-    xml_str += '  </edit-config>\n'
-    xml_str += '</rpc>'
+    param_list = etree.SubElement(spv, "ParameterList")
+    param_list.set(f"{{{SOAP_ENC}}}arrayType", "cwmp:ParameterValueStruct[1]")
     
-    return xml_str
+    struct = etree.SubElement(param_list, "ParameterValueStruct")
+    name_elem = etree.SubElement(struct, "Name")
+    name_elem.text = actual_path
+    
+    val_elem = etree.SubElement(struct, "Value")
+    val_elem.set(f"{{{XSI}}}type", xsd_type)
+    val_elem.text = str(value)
+    
+    param_key = etree.SubElement(spv, "ParameterKey")
+    param_key.text = "Update"
+    
+    return etree.tostring(root, pretty_print=True, encoding="UTF-8", xml_declaration=True).decode("utf-8")

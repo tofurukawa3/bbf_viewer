@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import TreeView from './components/TreeView'
 import Editor from './components/Editor'
-import NetconfPreview from './components/NetconfPreview'
+import CwmpPreview from './components/CwmpPreview'
 
 const API_BASE_URL = 'http://127.0.0.1:8000'
 
@@ -36,7 +36,7 @@ function App() {
   const [treeData, setTreeData] = useState(null)
   const [selectedNode, setSelectedNode] = useState(null)
   const [selectedPath, setSelectedPath] = useState("")
-  const [netconfXml, setNetconfXml] = useState("")
+  const [cwmpXml, setCwmpXml] = useState("")
   
   // Search and Mode state
   const [searchTerm, setSearchTerm] = useState("")
@@ -62,7 +62,7 @@ function App() {
     setTreeData(null)
     setSelectedNode(null)
     setSelectedPath("")
-    setNetconfXml("")
+    setCwmpXml("")
     setSearchTerm("")
 
     fetch(`${API_BASE_URL}/models/${selectedModel}`)
@@ -92,7 +92,7 @@ function App() {
 
   const handleGenerateEdit = useCallback(async (path, value, listInstances = null) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/netconf/edit-config`, {
+      const response = await fetch(`${API_BASE_URL}/cwmp/set-parameter-values`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +101,8 @@ function App() {
           model_name: selectedModel,
           target_path: path,
           value: value,
-          existing_xml: netconfXml || null,
+          datatype: selectedNode?.data_type || "string",
+          existing_xml: cwmpXml || null,
           list_instances: listInstances
         })
       });
@@ -111,12 +112,12 @@ function App() {
       }
 
       const result = await response.json();
-      setNetconfXml(result.xml_payload);
+      setCwmpXml(result.xml_payload);
     } catch (e) {
       console.error("Failed to generate edit config", e);
-      setNetconfXml(`Error generating XML: ${e.message}`);
+      setCwmpXml(`Error generating XML: ${e.message}`);
     }
-  }, [selectedModel, netconfXml]);
+  }, [selectedModel, cwmpXml, selectedNode]);
 
   const displayedTree = useMemo(() => {
     if (!treeData) return null;
@@ -199,7 +200,7 @@ function App() {
           </div>
         )}
 
-        {viewMode === 'edit' && <NetconfPreview xmlPayload={netconfXml} />}
+        {viewMode === 'edit' && <CwmpPreview xmlPayload={cwmpXml} />}
       </div>
     </div>
   )
