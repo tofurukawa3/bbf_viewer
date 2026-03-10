@@ -46,10 +46,8 @@ const CwmpPreview = ({ xmlPayload }) => {
     setLintStatus(null);
   };
 
-  if (!xmlPayload && !code) return null;
-
   return (
-    <div className="details-panel cwmp-preview" style={{ display: 'flex', flexDirection: 'column', minWidth: '400px' }}>
+    <div className="details-panel cwmp-preview" style={{ display: 'flex', flexDirection: 'column', minWidth: '400px', flex: 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h3 style={{ color: '#89b4fa', margin: 0 }}>Generated CWMP SetParameterValues</h3>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -83,15 +81,17 @@ const CwmpPreview = ({ xmlPayload }) => {
       <div className="notepad-view" style={{ flex: 1, padding: 0, overflow: 'auto', backgroundColor: '#1e1e2e', display: 'flex', flexDirection: 'column' }}>
         <Editor
           value={code}
-          onValueChange={c => { setCode(c); setLintStatus(null); }}
+          onValueChange={() => {}} /* Read-only mode: prevent changes */
           highlight={c => Prism.highlight(c, Prism.languages.xml, 'xml')}
           padding={15}
+          readOnly={true}
           style={{
             fontFamily: '"BIZ UDGothic", sans-serif',
-            fontSize: '9pt',
+            fontSize: '12pt',
             flex: 1,
             color: '#cdd6f4',
-            outline: 'none'
+            outline: 'none',
+            cursor: 'text'
           }}
         />
       </div>
