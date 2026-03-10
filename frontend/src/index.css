@@ -136,6 +136,7 @@ input:focus, select:focus {
 .main-content.edit-mode {
   flex-direction: row;
   align-items: stretch;
+  overflow: hidden;
 }
 
 .main-content > div {
@@ -147,6 +148,7 @@ input:focus, select:focus {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .details-panel h2 {
@@ -227,12 +229,13 @@ input:focus, select:focus {
 }
 
 .cwmp-preview {
-  height: 250px;
   background-color: #11111b;
-  border-top: 1px solid #313244;
-  padding: 1rem;
+  border: 1px solid #313244;
+  border-radius: 8px;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .cwmp-preview h3 {
@@ -251,7 +254,6 @@ input:focus, select:focus {
   border-radius: 8px;
   padding: 1rem;
   color: #cdd6f4;
-  resize: vertical;
 }
 
 .node-name-box {

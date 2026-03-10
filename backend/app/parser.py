@@ -290,6 +290,7 @@ def parse_xml_to_dict(model_name: str) -> dict:
                 "access": p_access,
                 "data_type": data_type,
                 "detailed_type": detailed_type,
+                "enum_values": enums if 'enums' in locals() else [],
                 "default_value": default_value,
                 "description": p_desc
             }

@@ -120,7 +120,10 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
   const renderInputControls = () => {
     let inputEl;
 
-    if (isDropdown) {
+    const hasEnums = Array.isArray(selectedNode.enum_values) && selectedNode.enum_values.length > 0;
+    const isBoolean = selectedNode.data_type && selectedNode.data_type.toLowerCase() === 'boolean';
+
+    if (hasEnums || isBoolean) {
       inputEl = (
         <select 
           value={editValue}
@@ -130,14 +133,14 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
           }}
           style={{ flexGrow: 1, padding: '0.4rem', borderRadius: '4px', border: '1px solid #45475a', backgroundColor: '#1e1e2e', color: '#cdd6f4' }}
         >
-          <option value="">-- Select --</option>
-          {isBoolean && (
+          <option value="">-- Select a value --</option>
+          {isBoolean && !hasEnums && (
             <>
               <option value="true">true</option>
               <option value="false">false</option>
             </>
           )}
-          {hasEnum && selectedNode.enum_values.map(v => (
+          {hasEnums && selectedNode.enum_values.map(v => (
             <option key={v} value={v}>{v}</option>
           ))}
         </select>
@@ -208,10 +211,10 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
               {selectedNode.node_type} {selectedNode.data_type ? `(${selectedNode.data_type})` : ''}
             </td>
           </tr>
-          {selectedNode.detailed_type && (
-            <tr>
-              <th>Description Type</th>
-              <td>
+          <tr>
+            <th>Type Description</th>
+            <td>
+              {selectedNode.detailed_type ? (
                 <span style={{ 
                   fontSize: '0.85rem', 
                   padding: '2px 6px', 
@@ -224,9 +227,9 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
                 }}>
                   {selectedNode.detailed_type}
                 </span>
-              </td>
-            </tr>
-          )}
+              ) : ""}
+            </td>
+          </tr>
           <tr>
             <th>Access</th>
             <td>{selectedNode.access}</td>
