@@ -1,0 +1,1636 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--  
+  Femto Component Objects
+
+  Copyright (c) 2011-2017, Broadband Forum
+  
+  Redistribution and use in source and binary forms, with or
+  without modification, are permitted provided that the following
+  conditions are met:
+  
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+  
+  2. Redistributions in binary form must reproduce the above
+     copyright notice, this list of conditions and the following
+     disclaimer in the documentation and/or other materials
+     provided with the distribution.
+  
+  3. Neither the name of the copyright holder nor the names of its
+     contributors may be used to endorse or promote products
+     derived from this software without specific prior written
+     permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+  NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  
+  The above license is used as a license under copyright only.
+  Please reference the Forum IPR Policy for patent licensing terms
+  <https://www.broadband-forum.org/ipr-policy>.
+  
+  Any moral rights which are necessary to exercise under the above
+  license grant are also deemed granted under this license.
+  
+  Summary:
+    This document defines optional components for Femto for use in CWMP managed 
+    devices. The objects may exist at the top level of a hierarchy, or in some 
+    cases within an existing object. The objects are intended for use in all CWMP Root 
+    objects. The objects define varying functionality for Femto like:
+            - GPS
+            - Tunnel
+            - Performance Management
+            - Application Platform
+
+  Editor:
+    Klaus Wich, Nokia Siemens Networks
+
+  BroadbandHome™ Working Group Chairs:
+    Greg Bathrick, PMC-Sierra
+    Jason Walls, UNH
+
+  Version History:
+    * November 2011: tr-262-1-0-0.xml, corresponds to TR-262 Issue 1.
+-->
+<dm:document xmlns:dm="urn:broadband-forum-org:cwmp:datamodel-1-4" xmlns:dmr="urn:broadband-forum-org:cwmp:datamodel-report-0-1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:broadband-forum-org:cwmp:datamodel-1-4                                     http://www.broadband-forum.org/cwmp/cwmp-datamodel-1-4.xsd                                  urn:broadband-forum-org:cwmp:datamodel-report-0-1                                     http://www.broadband-forum.org/cwmp/cwmp-datamodel-report.xsd" spec="urn:broadband-forum-org:tr-262-1-0-0" file="tr-262-1-0-0.xml">
+    
+    <description>TR-262 第 1 号フェムト コンポーネント オブジェクト</description>
+    <import file="tr-106-1-0-types.xml" spec="urn:broadband-forum-org:tr-106-1-0">
+        <dataType name="IPAddress"/>
+        <dataType name="Alias"/>
+    </import>
+    <component name="FAP">
+        <object name="FAP." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトは、すべての Femto 関連コンポーネント オブジェクトのコンテナであり、FAP 固有のオブジェクトによる BBF のいわゆるグローバル名前空間の汚染を防ぎます。</description>
+        </object>
+    </component>
+    <component name="FAP_GPS">
+        <object name="FAP.GPS." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、GPS スキャンに関連するパラメータが含まれています。</description>
+            <parameter name="ScanOnBoot" access="readWrite">
+                <description>デバイスの起動時に GPS スキャンを有効または無効にします。</description>
+                <syntax>
+                    <boolean/>
+                    <default type="factory" value="true"/>
+                </syntax>
+            </parameter>
+            <parameter name="ScanPeriodically" access="readWrite">
+                <description>定期的な GPS スキャンを有効または無効にします。</description>
+                <syntax>
+                    <boolean/>
+                    <default type="factory" value="false"/>
+                </syntax>
+            </parameter>
+            <parameter name="PeriodicInterval" access="readWrite">
+                <description>{{param|ScanPeriodively}} が {{true}} の場合、この値は GPS スキャンが実行される間隔を {{units}} 単位で示します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="PeriodicTime" access="readWrite">
+                <description>CPE が定期的な GPS スキャンをいつ開始するかを決定するための UTC での絶対時間基準。各 GPS スキャンは、この基準時間に {{param|PeriodicInterval}} の整数倍をプラスまたはマイナスした時刻 (またはその後できるだけ早く) に実行しなければなりません。
+{{param}} は、GPS スキャンの「フェーズ」を設定するためにのみ使用されます。 {{param}} の実際の値は、任意に過去または未来に設定できます。
+たとえば、{{param|PeriodicInterval}} が 86400 (1 日) で、{{param}} がある日 (過去、現在、または将来) の UTC 午前 0 時に設定されている場合、定期的な GPS スキャンは毎日 UTC 午前 0 時に実行されます。これらは、{{param}} が将来の日を指している場合でも、次の真夜中に開始しなければなりません。
+{{bibref|TR-106a4|セクション 3.2}} で定義されている不明な時間値は、特定の時間基準が指定されていないことを示します。つまり、CPE は時間基準をローカルに選択してもよく、指定された PeriodicInformInterval に従うことだけが必要です。
+CPE が絶対時間を利用できない場合、定期的な GPS スキャン動作は、{{param}} パラメータが Unknown Time 値に設定されている場合と同じでなければなりません。</description>
+                <syntax>
+                    <dateTime/>
+                </syntax>
+            </parameter>
+            <parameter name="ContinuousGPS" access="readWrite">
+                <description>デバイスが継続的な GPS ロックを維持すべきかどうか (例: 周波数安定源として)。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="ScanTimeout" access="readWrite">
+                <description>スキャンの開始以降、スキャンがタイムアウトになるまでのタイムアウト値を {{units}} で指定します。タイムアウトしたスキャンは、{{enum|Error_TIMEOUT|ScanStatus}} として報告され、{{param|ErrorDetails}} は「タイムアウト」を示します</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="ScanStatus" access="readOnly">
+                <description>このスキャンの現在のステータスを示します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="Indeterminate">
+                            <description>スキャンは実行されておらず、有効なスキャン結果がありません</description>
+                        </enumeration>
+                        <enumeration value="InProgress"/>
+                        <enumeration value="Success"/>
+                        <enumeration value="Error"/>
+                        <enumeration value="Error_TIMEOUT"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="ErrorDetails" access="readOnly">
+                <description>{{param|ScanStatus}} が {{enum|Error|ScanStatus}} または {{enum|Error_TIMEOUT|ScanStatus}} の場合、詳細が表示されます。</description>
+                <syntax>
+                    <string>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="LastScanTime" access="readOnly" activeNotify="forceDefaultEnabled">
+                <description>最後に GPS スキャンが完了した日時。</description>
+                <syntax>
+                    <dateTime/>
+                </syntax>
+            </parameter>
+            <parameter name="LastSuccessfulScanTime" access="readOnly" activeNotify="canDeny">
+                <description>GPS スキャンが最後に正常に完了した日時を指定します。
+この値は再起動後も保持され、別のスキャンが正常に完了するか、{{param|GPSReset}} が {{true}} に設定された後にのみリセットされます。
+{{param|LockedLatitude}}、{{param|LockedLongitude}}、および {{param|NumberOfSatellites}} の値はこの時刻に対応します。これまでにスキャンが成功したことがない場合、その値は、{{bibref|TR-106a4|セクション 3.2}} で定義されているように、不明な時間の値になります。</description>
+                <syntax>
+                    <dateTime/>
+                </syntax>
+            </parameter>
+            <parameter name="LockedLatitude" access="readOnly" activeNotify="canDeny">
+                <description>このパラメータは、デバイスの位置の緯度を度単位で指定し、100 万倍します。正の値は、赤道の北の方向を示します。負の値は、赤道の南の方向を示します。
+範囲は: 南緯 90 日 00.00 分 (-90,000,000) ～ 北緯 90 日 00.00 分 (90,000,000) です。
+例: 北緯 13d19.43' は、(13*1,000,000)+((19.43*1,000,000)/60) として導出され、13,323,833 として表されます。緯度 50d00.00' S は値 -50,000,000 として表されます。
+この値は再起動後も保持され、別のスキャンが正常に完了するか、{{param|GPSReset}} が {{true}} に設定された後にのみリセットされます。これまでにスキャンが成功したことがない場合は、値 0 が報告されます。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-90000000" maxInclusive="90000000"/>
+                    </int>
+                </syntax>
+            </parameter>
+            <parameter name="LockedLongitude" access="readOnly" activeNotify="canDeny">
+                <description>このパラメータは、デバイスの位置の経度を度単位で指定し、100 万倍します。正の値は、本初子午線の東の方向を示します。負の値は、本初子午線の西の方向を示します。
+範囲は: 180d00.00' 西 (-180,000,000) ～ 180d00.00' 東 (180,000,000) です。
+例: 東経 13d19.43 分は、(13*1,000,000)+((19.43*1,000,000)/60) として導出され、13,323,833 として表されます。経度 50d00.00' W は、値 -50,000,000 として表されます。
+この値は再起動後も保持され、別のスキャンが正常に完了するか、{{param|GPSReset}} が {{true}} に設定された後にのみリセットされます。これまでにスキャンが成功したことがない場合は、値 0 が報告されます。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-180000000" maxInclusive="180000000"/>
+                    </int>
+                </syntax>
+            </parameter>
+            <parameter name="NumberOfSatellites" access="readOnly" activeNotify="canDeny">
+                <description>テスト実行中にロックされた衛星の数。衛星の数が多いほど、結果の精度は高くなります。
+この値は再起動後も保持され、別のスキャンが正常に完了するか、{{param|GPSReset}} が {{true}} に設定された後にのみリセットされます。これまでにスキャンが成功したことがない場合は、値 0 が報告されます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="GPSReset" access="readWrite">
+                <description>これを {{true}} に設定すると、GPS ハードウェアがリセットされます。これを {{false}} に設定しても効果はありません。</description>
+                <syntax command="true">
+                    <boolean/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.GPS.ContinuousGPSStatus." access="readOnly" minEntries="1" maxEntries="1">
+            <description>{{param|#.ContinuousGPS}} が {{true}} の場合、このオブジェクトのパラメーターには、継続的に監視されている GPS ステータスが含まれます。
+{{param|#.ContinuousGPS}} が {{false}} の場合、このオブジェクトのパラメータは更新されず、その値は正確ではありません。</description>
+            <parameter name="CurrentFix" access="readOnly" activeNotify="canDeny">
+                <description>位置修正が現在有効な場合 (つまり、GPS 受信機が現在衛星信号を追跡している場合)、値は {{true}} で、それ以外の場合は {{false}} です。再起動後、GPS 受信機が有効な現在位置を取得するまで、値は {{false}} になります。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="GotFix" access="readOnly" activeNotify="canDeny">
+                <description>{{param|#.ContinuousGPS}} が有効になってから、{{param|CurrentFix}} が少なくとも 1 回 {{true}} に遷移した場合、値は {{true}}、それ以外の場合は {{false}} になります。再起動後、{{param|CurrentFix}} が再び {{true}} に移行するまで、値は {{false}} です。
+GPS 座標 ({{param|Latitude}}、{{param|Longitude}}、および {{param|Elevation}}) は、{{param}} の値が {{true}} になるまで有効ではありません。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="TimingGood" access="readOnly" activeNotify="canDeny">
+                <description>タイミング同期が良好な場合、値は {{true}}、そうでない場合は {{false}} になります。再起動後、タイミングが再度同期されるまで、値は {{false}} になります。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="Latitude" access="readOnly" activeNotify="canDeny">
+                <description>このパラメータは、デバイスの位置の最新の緯度読み取り値を度単位で表し、100 万倍します。正の値は、赤道の北の方向を示します。負の値は、赤道の南の方向を示します。
+範囲は、南緯 90 度 00.00 分 (-90,000,000) から北緯 90 度 00.00 分 (90,000,000) です。
+例: 北緯 13 度 19.43 分は、(13*1,000,000)+((19.43*1,000,000)/60) として導出され、13,323,833 として表されます。南緯 50 度 00.00 分は、値 -50,000,000 として表されます。
+{{param}} は、{{param|GotFix}} が {{true}} になるまで無効です。
+パラメーターがこれまでに設定されたことがない場合は、値 0 が報告されます。この値は再起動後も維持されるべきです(SHOULD)。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-90000000" maxInclusive="90000000"/>
+                    </int>
+                </syntax>
+            </parameter>
+            <parameter name="Longitude" access="readOnly" activeNotify="canDeny">
+                <description>このパラメータは、デバイスの位置の最新の経度読み取り値を度単位で表し、100 万を乗算します。正の値は、本初子午線の東の方向を示します。負の値は、本初子午線の西の方向を示します。
+範囲は: 180d00.00' 西 (-180,000,000) ～ 180d00.00' 東 (180,000,000) です。
+例: 東経 13d19.43 分は、(13*1,000,000)+((19.43*1,000,000)/60) として導出され、13,323,833 として表されます。経度 50d00.00' W は、値 -50,000,000 として表されます。
+{{param}} は、{{param|GotFix}} が {{true}} になるまで無効です。
+パラメーターがこれまでに設定されたことがない場合は、値 0 が報告されます。この値は再起動後も維持されるべきです(SHOULD)。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-180000000" maxInclusive="180000000"/>
+                    </int>
+                </syntax>
+            </parameter>
+            <parameter name="Elevation" access="readOnly" activeNotify="canDeny">
+                <description>このパラメータは、WGS84 楕円体を基準としたデバイスの位置の最新の標高読み取り値を {{units}} で表します。正の値は、海面上の方向を示します。負の値は、海面より下の方向を示します。
+範囲は、海抜 5,000,000 メートル (-5,000,000) から海抜 25,000,000 メートル (25,000,000) です。
+{{param}} は、{{param|GotFix}} が {{true}} になるまで無効です。
+パラメーターがこれまでに設定されたことがない場合は、値 0 が報告されます。この値は再起動後も維持されるべきです(SHOULD)。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-5000000" maxInclusive="25000000"/>
+                        <units value="millimeters"/>
+                    </int>
+                </syntax>
+            </parameter>
+            <parameter name="LastFixTime" access="readOnly" activeNotify="canDeny">
+                <description>最後に GPS Fix が取得された日時を表します。
+{{bibref|TR-106a4|セクション 3.2}} で定義されている不明な時間の値は、{{param|GotFix}} が {{false}} の場合に使用されます。これは、デバイスの再起動後も、有効な場所が決定され、{{param|GotFix}} が {{true}} に移行するまで適用されます。</description>
+                <syntax>
+                    <dateTime/>
+                </syntax>
+            </parameter>
+            <parameter name="LastFixDuration" access="readOnly" activeNotify="canDeny">
+                <description>連続 GPS 修正時間の {{units}} の数。再起動後、この値は 0 にリセットされます。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="FirstFixTimeout" access="readWrite">
+                <description>GPS 障害を宣言する前に最初の GPS 修正を待機する {{units}} の数。
+値 -1 は、タイムアウトも障害ログも存在しないことを意味します。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-1"/>
+                        <units value="seconds"/>
+                    </int>
+                </syntax>
+            </parameter>
+            <parameter name="SatellitesTracked" access="readOnly" activeNotify="canDeny">
+                <description>受信機が追跡している衛星の数。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="SatelliteTrackingInterval" access="readWrite">
+                <description>GPS 追跡情報が報告される間隔 ({{units}} 単位)。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="60" maxInclusive="3600"/>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="ReceiverStatus" access="readOnly" activeNotify="canDeny">
+                <description>GPS 受信機のステータスの出力。</description>
+                <syntax>
+                    <string>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="LocationType" access="readOnly" activeNotify="canDeny">
+                <description>{{param|Latitude}}、{{param|Longitude}}、および {{param|Elevation}} の値が GPS Fix (このパラメータの値は {{enum|Real}}) によって決定されるか、または他の手段 (このパラメータの値は {{enum|Reference}}) によって決定されるかを示します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="Real"/>
+                        <enumeration value="Reference"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="LockTimeOutDuration" access="readWrite">
+                <description>デバイスが GPS がロックを取得するまで待機するタイマー期間 ({{units}} 単位)。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="120" maxInclusive="86400"/>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.GPS.AGPSServerConfig." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、全地球測位支援システム (A-GPS) サーバーの構成用のパラメーターが含まれています。 {{bibref|3GPP-TS.25.171|セクション 3.2}} も参照してください</description>
+            <parameter name="Enable" access="readWrite">
+                <description>{{object}} エントリを有効または無効にします。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="ServerURL" access="readWrite">
+                <description>A-GPS サーバーのホスト名または IP アドレス。</description>
+                <syntax>
+                    <string>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="ServerPort" access="readWrite">
+                <description>A-GPS サーバーと通信するときに使用するポート。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range maxInclusive="65535"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="Username" access="readWrite">
+                <description>デバイスが A-GPS サーバーで認証するために使用するユーザー名。認証が使用されない場合、この文字列は {{empty}} に設定されます。</description>
+                <syntax>
+                    <string>
+                        <size maxLength="64"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="Password" access="readWrite">
+                <description>デバイスが A-GPS サーバーで認証するために使用するパスワード。認証が使用されない場合、この文字列は {{empty}} に設定されます。</description>
+                <syntax hidden="true">
+                    <string>
+                        <size maxLength="64"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="ReferenceLatitude" access="readWrite">
+                <description>このパラメータは、A-GPS 要求位置の基準緯度を度単位で指定し、100 万倍します。正の値は、赤道の北の方向を示します。負の値は、赤道の南の方向を示します。
+範囲は: 南緯 90 日 00.00 分 (-90,000,000) ～ 北緯 90 日 00.00 分 (90,000,000) です。
+例: 北緯 13d19.43' は、(13*1,000,000)+((19.43*1,000,000)/60) として導出され、13,323,833 として表されます。  緯度 50d00.00' S は値 -50,000,000 として表されます。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-90000000" maxInclusive="90000000"/>
+                    </int>
+                </syntax>
+            </parameter>
+            <parameter name="ReferenceLongitude" access="readWrite">
+                <description>このパラメータは、A-GPS 要求位置の基準経度を度単位で指定し、100 万倍します。正の値は、本初子午線の東の方向を示します。負の値は、本初子午線の西の方向を示します。
+範囲は: 180d00.00' 西 (-180,000,000) ～ 180d00.00' 東 (180,000,000) です。
+例: 東経 13d19.43 分は、(13*1,000,000)+((19.43*1,000,000)/60) として導出され、13,323,833 として表されます。経度 50d00'00'' W は、値 -50,000,000 として表されます。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-180000000" maxInclusive="180000000"/>
+                    </int>
+                </syntax>
+            </parameter>
+            <parameter name="ServerInUse" access="readOnly">
+                <description>デバイスが正常に接続して A-GPS サーバーから A-GPS 情報を受信した場合、値は {{true}} になります。それ以外の場合、値は {{false}} になります。
+再起動後、サーバーに再度接続できるまで、値は {{false}} になります。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+        </object>
+        <profile name="FAP_GPS:1">
+            <object ref="FAP.GPS." requirement="present">
+                <parameter ref="ScanOnBoot" requirement="readWrite"/>
+                <parameter ref="ScanPeriodically" requirement="readWrite"/>
+                <parameter ref="PeriodicInterval" requirement="readWrite"/>
+                <parameter ref="PeriodicTime" requirement="readWrite"/>
+                <parameter ref="ContinuousGPS" requirement="readWrite"/>
+                <parameter ref="ScanTimeout" requirement="readWrite"/>
+                <parameter ref="ScanStatus" requirement="readOnly"/>
+                <parameter ref="ErrorDetails" requirement="readOnly"/>
+                <parameter ref="LastScanTime" requirement="readOnly"/>
+                <parameter ref="LastSuccessfulScanTime" requirement="readOnly"/>
+                <parameter ref="LockedLatitude" requirement="readOnly"/>
+                <parameter ref="LockedLongitude" requirement="readOnly"/>
+                <parameter ref="NumberOfSatellites" requirement="readOnly"/>
+            </object>
+        </profile>
+    </component>
+    <component name="FAP_Tunnel">
+        <object name="FAP.Tunnel." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、トンネリングに関連するパラメータが含まれています。</description>
+            <parameter name="CryptoProfileNumberOfEntries" access="readOnly">
+                <description>{{解説}}</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="IKESANumberOfEntries" access="readOnly">
+                <description>{{解説}}</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="ChildSANumberOfEntries" access="readOnly">
+                <description>{{解説}}</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="MaxVirtualInterfaces" access="readOnly">
+                <description>仮想インターフェイスの最大数。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="VirtualInterfaceNumberOfEntries" access="readOnly">
+                <description>{{解説}}</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="UseForCWMP" access="readWrite">
+                <description>SecGW パラメータが設定されている場合、このパラメータは CWMP トラフィックが IPsec トンネル経由で送信されるか、IPsec トンネルの外部に送信されるかを決定します。
+{{false}} の場合、CWMP トラフィックは IPsec トンネルの外部に送信されます。
+{{true}} の場合、CWMP トラフィックは IPsec トンネル経由で送信されます。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="MaxChildSAPerIKE" access="readOnly">
+                <description>デバイスがサポートできる IKE セッションあたりの子 SA の最大数を示します。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="MaxIKESessions" access="readOnly">
+                <description>デバイスがいつでもサポートできる IKE セッションの最大数を示します。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.Tunnel.CryptoProfile.{i}." access="readWrite" minEntries="0" maxEntries="unbounded" numEntriesParameter="CryptoProfileNumberOfEntries" enableParameter="Enable">
+            <description>このオブジェクトには、IKEv2 および IPsec 暗号化プロファイルに関連するパラメータが含まれており、これらは本質的に典型的な IPsec SPD のサブセットです。 {{bibref|RFC4301}}。
+Cdma2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+            <uniqueKey>
+                <parameter ref="AuthMethod"/>
+                <parameter ref="IKEEncrypt"/>
+                <parameter ref="IKEPRF"/>
+                <parameter ref="IKEIntegrity"/>
+                <parameter ref="IKEDH"/>
+                <parameter ref="ESPEncrypt"/>
+                <parameter ref="ESPIntegrity"/>
+            </uniqueKey>
+           <uniqueKey functional="false">
+                <parameter ref="Alias"/>
+            </uniqueKey>
+            <parameter name="Enable" access="readWrite">
+                <description>このエントリを有効または無効にします。</description>
+                <syntax>
+                    <boolean/>
+                    <default type="object" value="false"/>
+                </syntax>
+            </parameter>
+            <parameter name="Alias" access="readWrite">
+                <description>{{データ型|展開}}</description>
+                <syntax>
+                    <dataType ref="Alias"/>
+                </syntax>
+            </parameter>
+            <parameter name="AuthMethod" access="readWrite">
+                <description>デバイスが自身を認証するために使用するセキュリティ メカニズムと資格情報のセット ({{bibref|TR-157a5}} で定義された ''.Security.Certificate.'' オブジェクトのインスタンス、または {{bibref|TR-196i2}} で定義された ''.Services.FAPService.{i}.Transport.Security.Secret.'' オブジェクトのインスタンス) を指定します。
+{{reference}} 値が {{empty}} の場合、デバイスはローカル ポリシーに基づいて認証方法を選択します。
+デバイス認証とホスティング側認証の両方を行うようにデバイスを構成するために、オブジェクトには ''.Security.Certificate.'' の有効なインスタンスが設定されます。物体。</description>
+                <syntax>
+                    <string>
+                        <pathRef refType="strong" targetType="row"/>
+                        <size maxLength="256"/>
+                    </string>
+                    <default type="object" value=""/>
+                </syntax>
+            </parameter>
+            <parameter name="MaxChildSA" access="readWrite">
+                <description>単一の IKE セッションでネゴシエートできる子 SA の最大数を制御します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="2" maxInclusive="2"/>
+                        <range minInclusive="4" maxInclusive="4"/>
+                        <range minInclusive="6" maxInclusive="6"/>
+                        <range minInclusive="8" maxInclusive="8"/>
+                        <range minInclusive="10" maxInclusive="10"/>
+                    </unsignedInt>
+                    <default type="object" value="2"/>
+                </syntax>
+            </parameter>
+            <parameter name="IKEEncrypt" access="readWrite">
+                <description>IKEv2 暗号化アルゴリズム。 {{bibref|RFC4307}}
+CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="3DES-CBC"/>
+                        <enumeration value="AES-CBC"/>
+                    </string>
+                    <default type="object" value="AES-CBC"/>
+                </syntax>
+            </parameter>
+            <parameter name="IKEPRF" access="readWrite">
+                <description>IKEv2 の擬似ランダム関数。 {{bibref|RFC4307}}
+CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="HMAC-SHA1"/>
+                        <enumeration value="AES-XCBC-PRF-128"/>
+                    </string>
+                    <default type="object" value="HMAC-SHA1"/>
+                </syntax>
+            </parameter>
+            <parameter name="IKEIntegrity" access="readWrite">
+                <description>IKEv2 整合性機能。 {{bibref|RFC4307}}
+CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="HMAC-SHA1-96"/>
+                        <enumeration value="AES-XCBC-MAC-96"/>
+                    </string>
+                    <default type="object" value="HMAC-SHA1-96"/>
+                </syntax>
+            </parameter>
+            <parameter name="IKEDH" access="readWrite">
+                <description>IKEv2 の擬似ランダム関数。 {{bibref|RFC4307}}
+CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="1024"/>
+                        <enumeration value="2048"/>
+                    </string>
+                    <default type="object" value="2048"/>
+                </syntax>
+            </parameter>
+            <parameter name="ESPEncrypt" access="readWrite">
+                <description>IPsec 暗号化アルゴリズム。 {{bibref|RFC4835|セクション 3.1.1}}
+CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="3DES-CBC"/>
+                        <enumeration value="AES-CBC"/>
+                        <enumeration value="Null"/>
+                    </string>
+                    <default type="object" value="AES-CBC"/>
+                </syntax>
+            </parameter>
+            <parameter name="ESPIntegrity" access="readWrite">
+                <description>IPsec整合性機能。 {{bibref|RFC4835|セクション 3.1.1}}
+CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="HMAC-SHA1-96"/>
+                        <enumeration value="AES-XCBC-MAC-96"/>
+                    </string>
+                    <default type="object" value="HMAC-SHA1-96"/>
+                </syntax>
+            </parameter>
+            <parameter name="IPsecWindowSize" access="readWrite">
+                <description>アンチリプレイ ウィンドウのサイズ。
+0 の場合、シーケンス番号検証は無効になります。
+UMTS デバイスについては、{{bibref|3GPP-TS.32.582}} および {{bibref|3GPP-TS.32.584}} を参照してください。 LTE デバイスについては、{{bibref|3GPP-TS.32.592}} を参照してください。 CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} を参照してください。</description>
+                <syntax>
+                    <unsignedInt/>
+                    <default type="object" value="0"/>
+                </syntax>
+            </parameter>
+            <parameter name="IKERekeyLifetime" access="readWrite">
+                <description>IKEv2 SA キー再生成が {{units}} でタイムアウトしました。
+UMTS デバイスについては、{{bibref|3GPP-TS.32.582}} および {{bibref|3GPP-TS.32.584}} を参照してください。 LTE デバイスについては、{{bibref|3GPP-TS.32.592}} を参照してください。 CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} を参照してください。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="IPsecRekeyLifetimeByte" access="readWrite">
+                <description>IPsec SA キー再生成が {{units}} でタイムアウトしました。
+UMTS デバイスについては、{{bibref|3GPP-TS.32.582}} および {{bibref|3GPP-TS.32.584}} を参照してください。 LTE デバイスについては、{{bibref|3GPP-TS.32.592}} を参照してください。 CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} を参照してください。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="Kilobytes"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="IPsecRekeyLifetimeTime" access="readWrite">
+                <description>IPsec SA キー再生成が {{units}} でタイムアウトしました。
+UMTS デバイスについては、{{bibref|3GPP-TS.32.582}} および {{bibref|3GPP-TS.32.584}} を参照してください。 LTE デバイスについては、{{bibref|3GPP-TS.32.592}} を参照してください。 CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} を参照してください。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="DPDTimer" access="readWrite">
+                <description>DPD タイムアウト ({{units}})。
+UMTS デバイスについては、{{bibref|3GPP-TS.32.582}} および {{bibref|3GPP-TS.32.584}} を参照してください。 LTE デバイスについては、{{bibref|3GPP-TS.32.592}} を参照してください。 CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} を参照してください。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                    <default type="object" value="300"/>
+                </syntax>
+            </parameter>
+            <parameter name="NATTKeepaliveTimer" access="readWrite">
+                <description>NAT-T キープアライブ タイムアウトが {{units}} で発生しました。
+UMTS デバイスについては、{{bibref|3GPP-TS.32.582}} および {{bibref|3GPP-TS.32.584}} を参照してください。 LTE デバイスについては、{{bibref|3GPP-TS.32.592}} を参照してください。 CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} を参照してください。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                    <default type="object" value="180"/>
+                </syntax>
+            </parameter>
+           <parameter name="SecMaxFragSize" access="readWrite">
+                <description>暗号化前のデバイスからの最大フラグメント サイズ ({{units}} 単位)。
+CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="256" maxInclusive="1400"/>
+                        <units value="bytes"/>
+                    </unsignedInt>
+                    <default type="object" value="1200"/>
+                </syntax>
+            </parameter>
+            <parameter name="SecDFBit" access="readWrite">
+                <description>「Do Not Fragment」ビットをオン/オフする必要があるかどうかを示します。
+CDMA2000 デバイスについては、{{bibref|3GPP2-S.S0132}} も参照してください。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="On"/>
+                        <enumeration value="Off"/>
+                    </string>
+                    <default type="object" value="Off"/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.Tunnel.IKESA.{i}." access="readOnly" minEntries="0" maxEntries="unbounded" numEntriesParameter="IKESANumberOfEntries">
+            <description>IKE IPsec セキュリティ アソシエーション テーブル。このテーブルは、IPsec Security Association Database (SAD) のメンバーです。 {{bibref|RFC4301}}。</description>
+            <uniqueKey>
+                <parameter ref="IPAddress"/>
+                <parameter ref="SubnetMask"/>
+            </uniqueKey>
+            <parameter name="Status" access="readOnly">
+                <description>この IKE SA エントリのステータス。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="Disabled"/>
+                        <enumeration value="Active"/>
+                        <enumeration value="Completed"/>
+                        <enumeration value="Progressing"/>
+                        <enumeration value="Error" optional="true">
+                            <description>この値は、ローカルに定義されたエラー状態を示すために CPE によって使用されてもよい (MAY)。</description>
+                        </enumeration>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="PeerAddress" access="readOnly">
+                <description>ピア SecGW の IP アドレス。</description>
+                <syntax>
+                    <dataType ref="IPAddress"/>
+                </syntax>
+            </parameter>
+            <parameter name="CreationTime" access="readOnly">
+                <description>現在の IKE SA が設定された時刻。</description>
+                <syntax>
+                    <dateTime/>
+                </syntax>
+            </parameter>
+            <parameter name="IPAddress" access="readOnly" activeNotify="forceDefaultEnabled">
+                <description>IKEv2 によってこのインターフェイスに割り当てられた現在の IP アドレス。</description>
+                <syntax>
+                    <dataType ref="IPAddress"/>
+                </syntax>
+            </parameter>
+            <parameter name="SubnetMask" access="readOnly">
+                <description>IKEv2 によってこのインターフェイスに割り当てられた現在のサブネット マスク。</description>
+                <syntax>
+                    <string/>
+                </syntax>
+            </parameter>
+            <parameter name="DNSServers" access="readOnly">
+                <description>{{list}} 各項目は、IKEv2 によってこのインターフェイスに割り当てられた、このインターフェイスの DNS サーバーの IP アドレスです。</description>
+                <syntax>
+                    <list>
+                        <size maxLength="256"/>
+                    </list>
+                    <dataType ref="IPAddress"/>
+                </syntax>
+            </parameter>
+            <parameter name="DHCPServers" access="readOnly">
+                <description>{{list}} 各項目は、このインターフェイスの DHCP サーバーの IP アドレスです。
+空でないリストは、内部 DHCP 要求をこのパラメータに含まれるアドレスに送信するように CPE に指示します。</description>
+                <syntax>
+                    <list>
+                        <size maxLength="256"/>
+                    </list>
+                    <dataType ref="IPAddress"/>
+                </syntax>
+            </parameter>
+            <parameter name="IntegrityErrors" access="readOnly" activeNotify="canDeny">
+                <description>整合性チェック エラーにより IKE SA によって廃棄された受信パケットの数。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="OtherErrors" access="readOnly" activeNotify="canDeny">
+                <description>アンチリプレイ エラーなどの他のエラーにより IKE SA によって廃棄された受信パケットの数。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="AuthErrors" access="readOnly" activeNotify="canDeny">
+                <description>認証エラーにより IKE SA によって廃棄された受信パケットの数。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.Tunnel.ChildSA.{i}." access="readOnly" minEntries="0" maxEntries="unbounded" numEntriesParameter="ChildSANumberOfEntries">
+            <description>子 IPsec セキュリティ アソシエーション テーブル。  このテーブルは、IPsec Security Association Database (SAD) のメンバーです。 {{bibref|RFC4301}}。</description>
+            <uniqueKey>
+                <parameter ref="SPI"/>
+            </uniqueKey>
+            <parameter name="ParentID" access="readOnly">
+                <description>{{参照}}</description>
+                <syntax>
+                    <string>
+                        <pathRef refType="strong" targetParent="#.IKESA." targetType="row"/>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="SPI" access="readOnly">
+                <description>子 SA の SPI 値。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="DirectionOutbound" access="readOnly">
+                <description>交通方向。
+{{true}} の場合、この子 SA は送信トラフィックを指します。
+{{false}} の場合、この子 SA は受信トラフィックを指します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="CreationTime" access="readOnly">
+                <description>現在の子 SA が設定された時刻。</description>
+                <syntax>
+                    <dateTime/>
+                </syntax>
+            </parameter>
+            <parameter name="Traffic" access="readOnly">
+                <description>子 SA によって転送された {{units}} 単位の測定トラフィック。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="bytes"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="IntegrityErrors" access="readOnly" activeNotify="canDeny">
+                <description>整合性チェックエラーにより子 SA によって破棄された受信 {{units}} の数。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="packets"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="ReplayErrors" access="readOnly" activeNotify="canDeny">
+                <description>アンチリプレイ エラーにより子 SA によって破棄された受信 {{units}} の数。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="packets"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.Tunnel.VirtualInterface.{i}." access="readWrite" minEntries="0" maxEntries="unbounded" numEntriesParameter="VirtualInterfaceNumberOfEntries" enableParameter="Enable">
+            <description>{{bibref|TR-098a2}} (InternetGatewayDevice.QueueManagement.Classification.{i}. および InternetGatewayDevice.QueueManagement.Queue.{i}.) または {{bibref|TR-181i2}} で定義されているように、トンネル (一時) childSA ペアを QoS 分類およびキュー テーブルに関連付けるために使用される仮想インターフェイス(Device.QoS.Classification.{i}.および Device.QoS.Queue.{i}.)。</description>
+            <uniqueKey>
+                <parameter ref="CryptoProfile"/>
+                <parameter ref="DSCPMarkPolicy"/>
+            </uniqueKey>
+            <uniqueKey functional="false">
+                <parameter ref="Alias"/>
+            </uniqueKey>
+            <parameter name="Enable" access="readWrite">
+                <description>このエントリを有効または無効にします。</description>
+                <syntax>
+                    <boolean/>
+                    <default type="object" value="false"/>
+                </syntax>
+            </parameter>
+            <parameter name="Alias" access="readWrite">
+                <description>{{データ型|展開}}</description>
+                <syntax>
+                    <dataType ref="Alias"/>
+                </syntax>
+            </parameter>
+            <parameter name="CryptoProfile" access="readWrite">
+                <description>{{reference}} VirtualInterface の複数のインスタンスが同じ CryptoProfile インスタンスを指している場合、関連付けられた {{param|#.CryptoProfile.{i}.MaxChildSA}} は、各仮想インターフェイスの子 SA をネゴシエートするために新しい IKE セッションを (動的に) 作成するかどうかを決定します。それ以外の場合は、同じ IKE セッションを通じてネゴシエートされます。</description>
+                <syntax>
+                    <string>
+                        <pathRef refType="strong" targetType="row" targetParent="#.CryptoProfile."/>
+                        <size maxLength="256"/>
+                    </string>
+                    <default type="object" value=""/>
+                </syntax>
+            </parameter>
+            <parameter name="DSCPMarkPolicy" access="readWrite">
+                <description>DSCP は、この仮想インターフェイスに関連付けられたトラフィックの外部 IP ヘッダーをマークします。
+値 -1 は、受信パケットからのコピーを示します。
+値 -2 は、UMTS QoS クラス {{bibref|3GPP-TS.23.107}} または CDMA2000 加入者 QoS プロファイル {{bibref|3GPP2-X.S0011}} に定義されている DSCP の自動マーキングを示します。
+トンネル解除されたパケットには再マークが付けられることはありません。</description>
+                <syntax>
+                    <int>
+                        <range minInclusive="-2"/>
+                    </int>
+                    <default type="object" value="-1"/>
+                </syntax>
+            </parameter>
+        </object>
+        <profile name="FAP_Tunnel:1">
+            <object ref="FAP.Tunnel." requirement="present">
+                <parameter ref="IKESANumberOfEntries" requirement="readOnly"/>
+                <parameter ref="ChildSANumberOfEntries" requirement="readOnly"/>
+                <parameter ref="MaxVirtualInterfaces" requirement="readOnly"/>
+                <parameter ref="VirtualInterfaceNumberOfEntries" requirement="readOnly"/>
+                <parameter ref="UseForCWMP" requirement="readWrite"/>
+                <parameter ref="MaxChildSAPerIKE" requirement="readOnly"/>
+                <parameter ref="MaxIKESessions" requirement="readOnly"/>
+            </object>
+            <object ref="FAP.Tunnel.IKESA.{i}." requirement="present">
+                <parameter ref="Status" requirement="readOnly"/>
+                <parameter ref="PeerAddress" requirement="readOnly"/>
+                <parameter ref="CreationTime" requirement="readOnly"/>
+                <parameter ref="IPAddress" requirement="readOnly"/>
+                <parameter ref="SubnetMask" requirement="readOnly"/>
+            </object>
+            <object ref="FAP.Tunnel.ChildSA.{i}." requirement="present">
+                <parameter ref="ParentID" requirement="readOnly"/>
+                <parameter ref="SPI" requirement="readOnly"/>
+                <parameter ref="DirectionOutbound" requirement="readOnly"/>
+                <parameter ref="CreationTime" requirement="readOnly"/>
+            </object>
+            <object ref="FAP.Tunnel.VirtualInterface.{i}." requirement="present">
+                <parameter ref="Enable" requirement="readWrite"/>
+                <parameter ref="CryptoProfile" requirement="readWrite"/>
+                <parameter ref="DSCPMarkPolicy" requirement="readWrite"/>
+            </object>
+            <object ref="FAP.Tunnel.CryptoProfile.{i}." requirement="createDelete">
+                <parameter ref="Enable" requirement="readWrite"/>
+                <parameter ref="AuthMethod" requirement="readWrite"/>
+                <parameter ref="MaxChildSA" requirement="readWrite"/>
+                <parameter ref="IKEEncrypt" requirement="readWrite"/>
+                <parameter ref="IKEPRF" requirement="readWrite"/>
+                <parameter ref="IKEIntegrity" requirement="readWrite"/>
+                <parameter ref="IKEDH" requirement="readWrite"/>
+                <parameter ref="ESPEncrypt" requirement="readWrite"/>
+                <parameter ref="ESPIntegrity" requirement="readWrite"/>
+            </object>
+        </profile>
+    </component>
+    <component name="FAP_PerformanceMgmt">
+        <object name="FAP.PerfMgmt." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、フェムト関連環境におけるパフォーマンス管理に関連するパラメータが含まれています。</description>
+            <parameter name="ConfigNumberOfEntries" access="readOnly">
+                <description>{{解説}}</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.PerfMgmt.Config.{i}." access="readWrite" minEntries="0" maxEntries="unbounded" numEntriesParameter="ConfigNumberOfEntries" enableParameter="Enable">
+            <description>このオブジェクトには、指定されたファイル サーバーにパフォーマンス ファイルをアップロードするためのファイル管理構成に関連するパラメータが含まれています。各テーブル エントリは、FAPService インスタンスに含まれる 0 個以上の無線固有のオブジェクトによって参照できます。定期的なアップロードでは、それを参照するすべての無線固有のオブジェクトのデータがアップロードされます。</description>
+            <uniqueKey functional="false">
+                <parameter ref="Alias"/>
+            </uniqueKey>
+            <uniqueKey functional="true">
+                <parameter ref="URL"/>
+                <parameter ref="PeriodicUploadInterval"/>
+                <parameter ref="PeriodicUploadTime"/>
+            </uniqueKey>
+            <parameter name="Enable" access="readWrite">
+                <description>このエントリを有効または無効にします。  このエントリが無効になっている場合、定期的なアップロードは実行されません。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="Alias" access="readWrite">
+                <description>{{データ型|展開}}</description>
+                <syntax>
+                    <dataType ref="Alias"/>
+                </syntax>
+            </parameter>
+            <parameter name="URL" access="readWrite">
+                <description>宛先ファイルの場所を指定する URL。 HTTP および HTTPS トランスポートがサポートされなければなりません。他のトランスポートがサポートされてもよい(MAY)。
+この引数は、宛先ファイルの場所のみを指定し、アップロードするローカル ファイルの名前や場所を示すものではありません。</description>
+                <syntax>
+                    <string>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="Username" access="readWrite">
+                <description>デバイスがファイル サーバーで認証するために使用するユーザー名。認証が使用されない場合、この文字列は {{empty}} に設定されます。</description>
+                <syntax>
+                    <string>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="Password" access="readWrite">
+                <description>デバイスがファイル サーバーで認証するために使用するパスワード。認証が使用されない場合、この文字列は {{empty}} に設定されます。</description>
+                <syntax hidden="true">
+                    <string>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="PeriodicUploadInterval" access="readWrite">
+                <description>{{param|Enable}} が {{true}} の場合、デバイスがパフォーマンス ファイルを作成し、そのファイルを {{param|URL}} にアップロードする必要がある間隔の期間 ({{units}} 単位)。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="1"/>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="PeriodicUploadTime" access="readWrite">
+                <description>デバイスが定期的なファイルのアップロードをいつ開始するかを決定するための UTC での絶対時間参照。各ファイルのアップロードは、この基準時間に {{param|PeriodicUploadInterval}} の整数倍をプラスまたはマイナスした時刻に行われなければなりません。
+{{param}} は、定期的なアップロードの「フェーズ」を設定するためにのみ使用されます。 {{param}} の実際の値は、任意に過去または未来に設定できます。
+たとえば、{{param|PeriodicUploadInterval}} が 86400 (1 日) で、{{param}} がある日 (過去、現在、または将来) の UTC 午前 0 時に設定されている場合、定期的なファイルのアップロードは毎日 UTC 午前 0 時に行われます。これらは、{{param}} が将来の日を指している場合でも、次の真夜中に開始しなければなりません。
+{{bibref|TR-106a4|セクション 3.2}} で定義されている不明な時間値は、特定の時間基準が指定されていないことを示します。つまり、デバイスは時間基準をローカルに選択してもよく、指定された {{param|PeriodicUploadInterval}} に従うことのみが要求されます。
+デバイスで絶対時間が利用できない場合、その定期的なファイルアップロード動作は、{{param}} パラメータが不明な時間値に設定されている場合と同じでなければなりません。</description>
+                <syntax>
+                    <dateTime/>
+                </syntax>
+            </parameter>
+        </object>
+        <profile name="FAP_PerfMgmt:1">
+            <object ref="FAP.PerfMgmt." requirement="present">
+                <parameter ref="ConfigNumberOfEntries" requirement="readOnly"/>
+            </object>
+            <object ref="FAP.PerfMgmt.Config.{i}." requirement="present">
+                <parameter ref="Enable" requirement="readWrite"/>
+                <parameter ref="URL" requirement="readWrite"/>
+                <parameter ref="Username" requirement="readWrite"/>
+                <parameter ref="Password" requirement="readWrite"/>
+                <parameter ref="PeriodicUploadInterval" requirement="readWrite"/>
+                <parameter ref="PeriodicUploadTime" requirement="readWrite"/>
+            </object>
+        </profile>
+    </component>
+    <component name="FAP_ApplicationPlatform">
+        <object name="FAP.ApplicationPlatform." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトは、次の Femtozone API のデータ モデルを定義します。
+* フェムト意識
+* SMS
+*MMS
+* ターミナルの位置
+フェムト認識、SMS、MMS、および端末位置 API は、フェムト フォーラムのサービス SIG のリリース 1 API 仕様で定義されています (非公開文書)。
+{{bibref|TR-262|付録 I}} には、このオブジェクトの使用法に関する「動作理論」が記載されています。</description>
+            <parameter name="Version" access="readOnly">
+                <description>このデバイスで実行されている Femto アプリケーション プラットフォームのバージョン</description>
+                <syntax>
+                    <string>
+                        <size maxLength="64"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="Enable" access="readWrite">
+                <description>Femto ApplicationPlatform を有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="Status" access="readOnly">
+                <description>フェムト アプリケーション プラットフォームの現在の状態。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="Disabled"><description>Femto アプリケーション プラットフォームは利用できません</description></enumeration>
+                        <enumeration value="Enabled"><description>Femto アプリケーション プラットフォームが利用可能です</description></enumeration>
+                        <enumeration value="Reset"><description>FemtoApplicationPlatform はリセット中のため、リセット操作が完了すると {{enum|Disabled}} 状態に移行します</description></enumeration>
+                        <enumeration value="Initializing"><description>FemtoApplicationPlatform は初期化中であり、初期化が完了すると {{enum|Enabled}} 状態に移行します</description></enumeration>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="MaxNumberOfApplications" access="readOnly">
+                <description>フェムト アプリケーション プラットフォームで同時にサポートできるフェムトゾーン アプリケーションの数を決定します。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="CurrentNumberofApplications" access="readOnly">
+                <description>現在フェムト アプリケーション プラットフォームと通信しているフェムトゾーン アプリケーションの数を指定します。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Capabilities." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、Femtozone アプリケーション プラットフォームと Femtozone API の機能に関連するパラメーターが含まれています。</description>
+            <parameter name="PresenceApplicationSupport" access="readOnly">
+                <description>フェムト アプリケーション プラットフォームがプレゼンスベースのフェムトゾーン アプリケーションをサポートするかどうかを指定します</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="FemtoAwarenessAPISupport" access="readOnly">
+                <description>Femto Awareness API がこのデバイスでサポートされるかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="SMSAPISupport" access="readOnly">
+                <description>SMS API がこのデバイスでサポートされるかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="SubscribeToNotificationsOfSMSSentToApplicationSupport" access="readOnly">
+                <description>SubscribeToNotificationsOfSMSSentToApplication 機能が FAP SMS API でサポートされるかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QuerySMSDeliveryStatusSupport" access="readOnly">
+                <description>QuerySMSDeliverStatus 機能が FAP SMS API でサポートされるかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="MMSAPISupport" access="readOnly">
+                <description>MMS API がこのデバイスでサポートされているかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QueryMMSDeliveryStatusSupport" access="readOnly">
+                <description>QueryMMSdeliveryStatus 機能が FAP MMS API でサポートされるかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="SubscribeToNotificationsOfMMSSentToApplicationSupport" access="readOnly">
+                <description>SubscribeToNotificationsOfMMSSentToApplication 機能が FAP MMS API でサポートされるかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="TerminalLocationAPISupport" access="readOnly">
+                <description>このデバイスで Terminal Location API がサポートされているかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="AuthenticationMethodsSupported" access="readOnly">
+                <description>サードパーティ アプリケーションが初期化時にフェムト アプリケーション プラットフォームでの認証に使用できる、サポートされている方法を指定します。カンマ区切りの文字列リスト。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="Basic"/>
+                        <enumeration value="Digest"/>
+                        <enumeration value="DigitalSignature"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="AccessLevelsSupported" access="readOnly">
+                <description>初期化時にフェムト アプリケーション プラットフォームで認証するときにサードパーティ アプリケーションが要求できる、サポートされるアクセス レベルを指定します。このアクセス レベルは、フェムト アプリケーション プラットフォーム内のリソースのみに関するものです (.FAPService.{i}.AccessMgmt の Access Mode パラメーターと混同しないでください)。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="Guest"/>
+                        <enumeration value="Standard"/>
+                        <enumeration value="Restricted"/>
+                        <enumeration value="Administrator"/>
+                        <enumeration value="Debug"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="SendSMSTargetAddressType" access="readOnly">
+                <description>SMS の送信先としてサポートされているアドレスの種類を指定します。</description>
+                <syntax>
+                    <list/>
+                    <string>
+                        <enumeration value="TelUri"/>
+                        <enumeration value="AnonymousReference"/>
+                        <enumeration value="All"/>
+                    </string>
+                </syntax>
+            </parameter>  
+            <parameter name="SendMMSTargetAddressType" access="readOnly">
+                <description>MMS の送信先としてサポートされるアドレスの種類を指定します。</description>
+                <syntax>
+                    <list/>                
+                    <string>
+                        <enumeration value="TelUri"/>
+                        <enumeration value="AnonymousReference"/>
+                        <enumeration value="All"/>
+                    </string>
+                </syntax>
+            </parameter>                      
+        </object>
+        <object name="FAP.ApplicationPlatform.Control." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、Femtozone API の操作に関連するパラメータが含まれています。</description>
+            <parameter name="AuthenticationMethod" access="readWrite">
+                <description>サードパーティ アプリケーションが Femto API を使用するために認証する必要がある方法を指定します。 {{参照}}
+''''注:'''''' 資格情報はデータ モデルの一部ではないため、外部から提供する必要があります。</description>
+                <syntax>
+                    <string>
+                        <enumerationRef targetParam="#.Capabilities.AuthenticationMethodsSupported"/>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="TunnelInst" access="readWrite">
+                <description>これは、アプリケーション プラットフォーム トラフィックによって使用される IPsec トンネル インスタンスへの参照です。
+InternetGatewayDevice:1 {{bibref|TR-098}} または Device:1 {{bibref|TR-181i1}}) がルート データ モデルとして使用される場合、{{param}} は ''.FAP.Tunnel.IKESA.{i}.'' テーブル内の行を指さなければなりません。
+使用されるルート データ モデルが Device:2 {{bibref|TR-181i2}} の場合、{{param}} はこのデータ モデルで定義されたトンネル インスタンスを指さなければなりません。
+参照されたオブジェクトが削除された場合、パラメータ値は空の文字列に設定されなければなりません。</description>
+                <syntax>
+                    <string>
+                        <size maxLength="256">
+                        </size>
+                    </string>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Control.FemtoAwareness." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、Femto Awareness API に関連するパラメータが含まれています。</description>
+            <parameter name="APIEnable" access="readWrite">
+                <description>FAP での FemtoAwareness API 公開を有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QueueEnable" access="readWrite">
+                <description>API のリクエスト キューを有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="Queueing " access="readWrite">
+                <description>FAP がさまざまなアプリケーションから Femto Awareness API への同時リクエストを処理する方法を決定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="FiFo"/>
+                        <enumeration value="Priority"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="MaxAPIUsersNumber" access="readWrite">
+                <description>Femto Awareness API にリクエストを送信できるさまざまなアプリケーションの最大数を決定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="FemtozoneID" access="readWrite">
+                <description>フェムトゾーンの識別子を指定します。</description>
+                <syntax>
+                    <string>
+                        <size maxLength="256"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="NotificationsUserIdentifierMSISDN" access="readWrite">
+                <description>Mobile Station International Subscriber Directory Number (MSISDN) をフェムト認識通知の UserIdentifier として使用する必要があるかどうかを指定します。値 {{true}} は MSISDN がユーザー識別子として送信されることを意味し、値 {{false}} は匿名参照が使用されることを意味します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="SubscribeToNotificationsResponseCallbackData" access="readWrite">
+                <description>「フェムト認識通知の購読」への要求への応答でオプションの引数「コールバック データ」を使用する必要があるかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QueryFemtocellResponseTimezone" access="readWrite">
+                <description>「フェムトセルステータスのクエリ」リクエストへの応答でオプションの引数「タイムゾーン」を使用する必要があるかどうかを指定します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Control.SMS." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、SMS API に関連するパラメータが含まれています。</description>
+            <parameter name="APIEnable" access="readWrite">
+                <description>FAP での SMS API 公開を有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QueueEnable" access="readWrite">
+                <description>API のリクエスト キューを有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="Queueing " access="readWrite">
+                <description>FAP がさまざまなアプリケーションから SMS API への同時リクエストを処理する方法を決定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="FiFo"/>
+                        <enumeration value="Priority"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="MaxAPIUsersNumber" access="readWrite">
+                <description>SMS API にリクエストを送信できるさまざまなアプリケーションの最大数を決定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="MinSendSMSTimeInterval" access="readWrite">
+                <description>同じアプリケーションによる 2 つの連続した SMS 送信リクエストの間の最小時間間隔を {{units}} 単位で決定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                        <range minInclusive="0" maxInclusive="3599"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="EnableQuerySMSDeliveryStatus" access="readWrite">
+                <description>SMS API の「QuerySMSDeliverStatus」オペレーションを有効または無効にします。無効にすると、SMS API への QuerySMSDeliverStatus リクエストは無視されます。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="EnableSubscribeToNotificationsOfMessageSentToApplication" access="readWrite">
+                <description>SMS API での「SubscribeToNotificationsOfMessageSentToApplication」操作を有効または無効にします。無効にすると、SMS API への SubscribeTo NoticesOfMessageSentToApplication リクエストは無視されます。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Control.MMS." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、MMS API に関連するパラメータが含まれています。</description>
+            <parameter name="APIEnable" access="readWrite">
+                <description>FAP での MMS API 公開を有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QueueEnable" access="readWrite">
+                <description>API のリクエスト キューを有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="Queueing " access="readWrite">
+                <description>FAP がさまざまなアプリケーションから MMS API への同時リクエストを処理する方法を決定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="FiFo"/>
+                        <enumeration value="Priority"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="MaxAPIUsersNumber" access="readWrite">
+                <description>MMS API にリクエストを送信できるさまざまなアプリケーションの最大数を決定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="MinSendMMSTimeInterval" access="readWrite">
+                <description>同じアプリケーションによる 2 つの連続する MMS 送信リクエストの間の最小時間間隔を {{units}} 単位で決定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                        <range minInclusive="0" maxInclusive="3599"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="EnableQueryMMSDeliveryStatus" access="readWrite">
+                <description>MMS API での「QuerySMSDeliverStatus」オペレーションを有効または無効にします。無効にすると、MMS API への QuerySMSDeliverStatus リクエストは無視されます。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="EnableSubscribeToNotificationsOfMessageSentToApplication" access="readWrite">
+                <description>MMS API での「SubscribeTo NoticesOfMessageSentToApplication」操作を有効または無効にします。無効にすると、MMS API への SubscribeTo NoticesOfMessageSentToApplication リクエストは無視されます。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Control.TerminalLocation." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、 TerminalLocation API に関連するパラメータが含まれています。</description>
+            <parameter name="APIEnable" access="readWrite">
+                <description>FAP での TerminalLocation API 公開を有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QueueEnable" access="readWrite">
+                <description>API のリクエスト キューを有効または無効にする</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="Queueing " access="readWrite">
+                <description>FAP がさまざまなアプリケーションから TerminalLocation API への同時リクエストを処理する方法を決定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="FiFo"/>
+                        <enumeration value="Priority"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="MaxAPIUsersNumber" access="readWrite">
+                <description>TerminalLocation API にリクエストを送信できるさまざまなアプリケーションの最大数を決定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueryMobileLocationResponseAddress" access="readWrite">
+                <description>QueryMobileLocation 応答で使用される端末アドレス形式を指定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="TelUri"/>
+                        <enumeration value="AnonymousReference"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="QueryMobileLocationResponseLongitudeLatitude" access="readWrite">
+                <description>QueryMobileLocation リクエストへの応答に FAP の経度と緯度の引数を含めるか除外します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QueryMobileLocationResponseAltitude" access="readWrite">
+                <description>QueryMobileLocation リクエストへの応答に FAP Altitude 引数を含めるか除外します。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="QueryMobileLocationResponseTimestamp" access="readWrite">
+                <description>応答タイムスタンプを {{units}} で指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                        <range minInclusive="0" maxInclusive="86399"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Monitoring." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、Femtozone アプリケーション プラットフォームと Femtozone API の監視に関連するパラメーターが含まれています。</description>
+            <parameter name="Enable" access="readWrite">
+                <description>このエントリを有効または無効にします。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="MonitoringInterval" access="readWrite">
+                <description>モニタリング測定値を収集するために使用される間隔を {{units}} で指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <units value="seconds"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="AuthenticationRequestsReceived" access="readOnly">
+                <description>フェムト アプリケーション プラットフォームが受信した認証リクエストの総数を指定します。カウンタは、デバイスが再起動するか、{{param|Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="AuthenticationRequestsRejected" access="readOnly">
+                <description>フェムト アプリケーション プラットフォームが受信した、拒否された認証要求の数を指定します。カウンタは、デバイスが再起動するか、{{param|Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Monitoring.FemtoAwareness." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、FemtoAwareness API のモニタリングに関連するパラメータが含まれています。</description>
+            <parameter name="APIAvailable" access="readOnly">
+                <description>FemtoAwareness API が現在このデバイスで利用可能かどうかを指定します (API が無効になっているか、リソースを使い果たしている可能性があります)</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="APIUsers" access="readOnly">
+                <description>Femto Awareness API を使用する現在のアプリケーションの数を指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueueState" access="readOnly">
+                <description>Femto Awareness API キューの状態を指定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="Disabled"/>
+                        <enumeration value="Ready"/>
+                        <enumeration value="Flushed"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="QueueNum" access="readOnly">
+                <description>Femto Awareness API キューで待機している現在のリクエストの数を指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueueReceived" access="readOnly">
+                <description>Femto Awareness API キュー内で受信されたリクエストの数を指定します。カウンタは、デバイスが再起動するか、{{param|#.Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="QueueDiscarded" access="readOnly">
+                <description>Femto Awareness API キュー内の破棄されたリクエストの数を指定します。カウンタは、デバイスが再起動するか、{{param|#.Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Monitoring.SMS." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、SMS API の監視に関連するパラメータが含まれています。</description>
+            <parameter name="APIAvailable" access="readOnly">
+                <description>このデバイスで SMS API が現在利用可能かどうかを指定します (API が無効になっているか、リソースを使い果たしている可能性があります)。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="APIUsers" access="readOnly">
+                <description>SMS API を使用する現在のアプリケーション数を指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueueState" access="readOnly">
+                <description>SMS API キューの状態を指定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="Disabled"/>
+                        <enumeration value="Ready"/>
+                        <enumeration value="Flushed"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="QueueNum" access="readOnly">
+                <description>SMS API キューで待機している現在のリクエストの数を指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueueReceived" access="readOnly">
+                <description>SMS API キュー内の受信したリクエストの数を指定します。カウンタは、デバイスが再起動するか、{{param|#.Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="QueueDiscarded" access="readOnly">
+                <description>SMS API キュー内の破棄された要求の数を指定します。カウンタは、デバイスが再起動するか、{{param|#.Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Monitoring.MMS." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、MMS API のモニタリングに関連するパラメータが含まれています。</description>
+            <parameter name="APIAvailable" access="readOnly">
+                <description>MMS API が現在このデバイスで利用可能かどうかを指定します (API が無効になっているか、リソースを使い果たしている可能性があります)。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="APIUsers" access="readOnly">
+                <description>MMS API を使用する現在のアプリケーション数を指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueueState" access="readOnly">
+                <description>MMS API キューの状態を指定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="Disabled"/>
+                        <enumeration value="Ready"/>
+                        <enumeration value="Flushed"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="QueueNum" access="readOnly">
+                <description>MMS API キューで待機している現在のリクエストの数を指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueueReceived" access="readOnly">
+                <description>MMS API キュー内の受信したリクエストの数を指定します。カウンタは、デバイスが再起動するか、{{param|#.Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="QueueDiscarded" access="readOnly">
+                <description>MMS API キュー内の破棄されたリクエストの数を指定します。カウンタは、デバイスが再起動するか、{{param|#.Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <object name="FAP.ApplicationPlatform.Monitoring.TerminalLocation." access="readOnly" minEntries="1" maxEntries="1">
+            <description>このオブジェクトには、 TerminalLocation API の監視に関連するパラメータが含まれています。</description>
+            <parameter name="APIAvailable" access="readOnly">
+                <description>このデバイスで TerminalLocation API が現在利用可能かどうかを指定します (API が無効になっているか、リソースを使い果たしている可能性があります)。</description>
+                <syntax>
+                    <boolean/>
+                </syntax>
+            </parameter>
+            <parameter name="APIUsers" access="readOnly">
+                <description>Terminal Location API を使用して現在のアプリケーション数を指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueueState" access="readOnly">
+                <description>端末位置 API キューの状態を指定します。</description>
+                <syntax>
+                    <string>
+                        <enumeration value="Disabled"/>
+                        <enumeration value="Ready"/>
+                        <enumeration value="Flushed"/>
+                    </string>
+                </syntax>
+            </parameter>
+            <parameter name="QueueNum" access="readOnly">
+                <description>ターミナル ロケーション API キューで待機している現在のリクエストの数を指定します。</description>
+                <syntax>
+                    <unsignedInt>
+                        <range minInclusive="0" maxInclusive="255"/>
+                    </unsignedInt>
+                </syntax>
+            </parameter>
+            <parameter name="QueueReceived" access="readOnly">
+                <description>端末位置 API キュー内の受信したリクエストの数を指定します。カウンタは、デバイスが再起動するか、{{param|#.Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+            <parameter name="QueueDiscarded" access="readOnly">
+                <description>ターミナル ロケーション API キュー内の破棄されたリクエストの数を指定します。カウンタは、デバイスが再起動するか、{{param|#.Enable}} パラメータが {{true}} に設定されるたびにリセットされます。</description>
+                <syntax>
+                    <unsignedInt/>
+                </syntax>
+            </parameter>
+        </object>
+        <profile name="FAP_ApplicationPlatform:1">
+            <object ref="FAP.ApplicationPlatform." requirement="present">
+                <parameter ref="Version" requirement="readOnly"/>
+                <parameter ref="Enable" requirement="readWrite"/>
+                <parameter ref="MaxNumberOfApplications" requirement="readOnly"/>
+            </object>
+            <object ref="FAP.ApplicationPlatform.Control." requirement="present">
+                <parameter ref="AuthenticationMethod" requirement="readWrite"/>
+            </object>
+            <object ref="FAP.ApplicationPlatform.Control.FemtoAwareness." requirement="present">
+                <parameter ref="APIEnable" requirement="readWrite"/>
+                <parameter ref="MaxAPIUsersNumber" requirement="readWrite"/>
+                <parameter ref="FemtozoneID" requirement="readWrite"/>
+            </object>
+            <object ref="FAP.ApplicationPlatform.Control.SMS." requirement="present">
+                <parameter ref="APIEnable" requirement="readWrite"/>
+                <parameter ref="MaxAPIUsersNumber" requirement="readWrite"/>
+                <parameter ref="MinSendSMSTimeInterval" requirement="readWrite"/>
+            </object>
+            <object ref="FAP.ApplicationPlatform.Control.MMS." requirement="present">
+                <parameter ref="APIEnable" requirement="readWrite"/>
+                <parameter ref="MaxAPIUsersNumber" requirement="readWrite"/>
+                <parameter ref="MinSendMMSTimeInterval" requirement="readWrite"/>
+            </object>
+            <object ref="FAP.ApplicationPlatform.Control.TerminalLocation." requirement="present">
+                <parameter ref="APIEnable" requirement="readWrite"/>
+                <parameter ref="MaxAPIUsersNumber" requirement="readWrite"/>
+                <parameter ref="QueryMobileLocationResponseAddress" requirement="readWrite"/>
+                <parameter ref="QueryMobileLocationResponseLongitudeLatitude" requirement="readWrite"/>
+            </object>
+        </profile>
+    </component>
+</dm:document>

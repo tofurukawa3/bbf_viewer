@@ -1,0 +1,4 @@
+lxml
+deep-translator
+tqdm
+
