@@ -47,3 +47,9 @@ def create_cwmp_set_parameter_values(payload: models.EditMessageRequest):
         payload.list_instances
     )
     return models.EditMessageResponse(xml_payload=xml_str)
+
+@app.post("/cwmp/get-parameter-values", response_model=models.EditMessageResponse)
+def create_cwmp_get_parameter_values(payload: models.GetMessageRequest):
+    """Generates a TR-069 CWMP GetParameterValues envelope for validating view mode paths."""
+    xml_str = parser.generate_cwmp_get_parameter_values(payload.target_paths)
+    return models.EditMessageResponse(xml_payload=xml_str)

@@ -84,7 +84,7 @@ body {
 }
 
 /* Special font for Edit configurations */
-.editor-panel input {
+.editor-panel input, .editor-panel select {
   font-family: 'BIZ UDGothic', sans-serif;
   font-size: 12pt;
 }

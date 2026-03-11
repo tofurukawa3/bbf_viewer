@@ -3,7 +3,7 @@ import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
 
-const CwmpPreview = ({ xmlPayload }) => {
+const CwmpPreview = ({ xmlPayload, viewMode }) => {
   const [code, setCode] = useState(xmlPayload || "");
   const [lintStatus, setLintStatus] = useState(null);
 
@@ -49,7 +49,9 @@ const CwmpPreview = ({ xmlPayload }) => {
   return (
     <div className="details-panel cwmp-preview" style={{ display: 'flex', flexDirection: 'column', minWidth: '400px', flex: 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h3 style={{ color: '#89b4fa', margin: 0 }}>Generated CWMP SetParameterValues</h3>
+        <h3 style={{ color: viewMode === 'view' ? '#a6e3a1' : '#89b4fa', margin: 0 }}>
+          {viewMode === 'view' ? "Generated CWMP GetParameterValues" : "Generated CWMP SetParameterValues"}
+        </h3>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={handleLint} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}>
             ✓ Lint XML

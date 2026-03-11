@@ -90,20 +90,15 @@ function App() {
     setSelectedPath(finalPath)
   }, []);
 
-  const handleGenerateEdit = useCallback(async (path, value, listInstances = null) => {
+  const handleGenerateGet = useCallback(async (targetPaths) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/cwmp/set-parameter-values`, {
+      const response = await fetch(`${API_BASE_URL}/cwmp/get-parameter-values`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model_name: selectedModel,
-          target_path: path,
-          value: value,
-          datatype: selectedNode?.data_type || "string",
-          existing_xml: cwmpXml || null,
-          list_instances: listInstances
+          target_paths: targetPaths
         })
       });
 
@@ -113,6 +108,53 @@ function App() {
 
       const result = await response.json();
       setCwmpXml(result.xml_payload);
+    } catch (e) {
+      console.error("Failed to generate get config", e);
+      setCwmpXml(`Error generating XML: ${e.message}`);
+    }
+  }, []);
+
+  // Auto-generate GetParameterValues payload in View Mode if there are no abstract {i} templates requiring manual input
+  useEffect(() => {
+    if (viewMode === 'view' && selectedPath) {
+      if (!selectedPath.includes('{i}')) {
+        handleGenerateGet([selectedPath]);
+      } else {
+        // Clear previous XML if user hits a complex instance constraint requiring manual definition
+        setCwmpXml("");
+      }
+    }
+  }, [selectedPath, viewMode, handleGenerateGet]);
+
+  const handleGenerateEdit = useCallback(async (payloadBatches, listInstances = null) => {
+    try {
+      let currentXml = cwmpXml;
+      
+      for (const batch of payloadBatches) {
+          const response = await fetch(`${API_BASE_URL}/cwmp/set-parameter-values`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model_name: selectedModel,
+              target_path: batch.path,
+              value: batch.value,
+              datatype: batch.datatype || "string",
+              existing_xml: currentXml || null,
+              list_instances: listInstances
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          currentXml = result.xml_payload;
+      }
+      
+      setCwmpXml(currentXml);
     } catch (e) {
       console.error("Failed to generate edit config", e);
       setCwmpXml(`Error generating XML: ${e.message}`);
@@ -185,12 +227,13 @@ function App() {
         </div>
       </div>
 
-      <div className={`main-content ${viewMode === 'edit' ? 'edit-mode' : ''}`}>
+      <div className="main-content edit-mode">
         {selectedNode ? (
           <Editor  
             selectedNode={selectedNode} 
             selectedPath={selectedPath}
             onGenerateEdit={handleGenerateEdit}
+            onGenerateGet={handleGenerateGet}
             viewMode={viewMode}
           />
         ) : (
@@ -200,7 +243,7 @@ function App() {
           </div>
         )}
 
-        {viewMode === 'edit' && <CwmpPreview xmlPayload={cwmpXml} />}
+        {cwmpXml && <CwmpPreview xmlPayload={cwmpXml} />}
       </div>
     </div>
   )

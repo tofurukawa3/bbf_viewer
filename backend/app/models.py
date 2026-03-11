@@ -23,5 +23,8 @@ class EditMessageRequest(BaseModel):
     existing_xml: Optional[str] = None
     list_instances: Optional[Any] = None # e.g. list of {"i": "1"} strings or something, let's just make it Any or List[str]
 
+class GetMessageRequest(BaseModel):
+    target_paths: List[str]
+
 class EditMessageResponse(BaseModel):
     xml_payload: str

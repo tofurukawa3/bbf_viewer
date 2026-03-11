@@ -7,48 +7,17 @@ import functools
 logger = logging.getLogger(__name__)
 
 # Data dir path relative to this backend module
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "cwmp-data-models")
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 TARGET_PREFIXES = ["tr-181", "tr-196", "tr-262"]
 
 @functools.lru_cache(maxsize=1)
 def get_available_models():
-    """Returns a list of available CWMP full XML models from the cwmp-data-models directory.
-    Only returns the latest version of each TR number."""
+    """Returns a list of all available XML models from the cwmp-data-models directory."""
     if not os.path.exists(DATA_DIR):
         return []
     
-    latest_models = {}
-    
-    for f in os.listdir(DATA_DIR):
-        # We target all XML files, but assign a priority weight to prefer 'full' models
-        if f.endswith(".xml") and any(f.startswith(prefix) for prefix in TARGET_PREFIXES):
-            # enforce -full.xml unless it's tr-262 which lacks one
-            if not f.endswith("-full.xml") and not f.startswith("tr-262"):
-                continue
-                
-            parts = f.split('-')
-            if len(parts) >= 3 and parts[0] == 'tr':
-                prefix = f"tr-{parts[1]}"
-                
-                # Extract version digits
-                version_parts = []
-                for p in parts[2:]:
-                    if p.isdigit():
-                        version_parts.append(int(p))
-                    else:
-                        break
-                version_tuple = tuple(version_parts)
-                
-                # Priority: full > cwmp > others
-                priority = 2 if "full.xml" in f else (1 if "cwmp.xml" in f else 0)
-                cmp_key = (version_tuple, priority)
-                
-                # Keep the one with the highest version tuple, preferring full.xml if equal
-                if prefix not in latest_models or cmp_key > latest_models[prefix][0]:
-                    latest_models[prefix] = (cmp_key, f)
-                    
-    # Return just the filenames, sorted alphabetically
-    return sorted([v[1] for v in latest_models.values()])
+    xml_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".xml")]
+    return sorted(xml_files)
 
 def _find_xml_file(model_name: str) -> str:
     path = os.path.join(DATA_DIR, model_name)
@@ -436,4 +405,42 @@ def generate_cwmp_set_parameter_values(target_path: str, value: Any, datatype: s
     param_key = etree.SubElement(spv, "ParameterKey")
     param_key.text = "Update"
     
+    return etree.tostring(root, pretty_print=True, encoding="UTF-8", xml_declaration=True).decode("utf-8")
+
+def generate_cwmp_get_parameter_values(target_paths: list[str]) -> str:
+    """
+    Generates a CWMP GetParameterValues SOAP 1.1 XML snippet.
+    Takes a list of parameter paths and constructs the <ParameterNames> element array type.
+    """
+    SOAP_ENV = "http://schemas.xmlsoap.org/soap/envelope/"
+    SOAP_ENC = "http://schemas.xmlsoap.org/soap/encoding/"
+    XSD = "http://www.w3.org/2001/XMLSchema"
+    XSI = "http://www.w3.org/2001/XMLSchema-instance"
+    CWMP = "urn:dslforum-org:cwmp-1-0"
+
+    nsmap = {
+        "soapenv": SOAP_ENV,
+        "soapenc": SOAP_ENC,
+        "xsd": XSD,
+        "xsi": XSI,
+        "cwmp": CWMP
+    }
+
+    # Generate a new envelope from scratch
+    root = etree.Element(f"{{{SOAP_ENV}}}Envelope", nsmap=nsmap)
+    header = etree.SubElement(root, f"{{{SOAP_ENV}}}Header")
+    cwmp_id = etree.SubElement(header, f"{{{CWMP}}}ID")
+    cwmp_id.set(f"{{{SOAP_ENV}}}mustUnderstand", "1")
+    cwmp_id.text = "1"
+    
+    body = etree.SubElement(root, f"{{{SOAP_ENV}}}Body")
+    gpv = etree.SubElement(body, f"{{{CWMP}}}GetParameterValues")
+    
+    param_names = etree.SubElement(gpv, "ParameterNames")
+    param_names.set(f"{{{SOAP_ENC}}}arrayType", f"xsd:string[{len(target_paths)}]")
+    
+    for path in target_paths:
+        string_elem = etree.SubElement(param_names, "string")
+        string_elem.text = path
+        
     return etree.tostring(root, pretty_print=True, encoding="UTF-8", xml_declaration=True).decode("utf-8")

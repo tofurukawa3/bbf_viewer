@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
-const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
-  const [editValue, setEditValue] = useState("");
-  const [listInstanceI, setListInstanceI] = useState("");
+const Editor = ({ selectedNode, selectedPath, onGenerateEdit, onGenerateGet, viewMode }) => {
+  const [bulkValues, setBulkValues] = useState({});
+  const [listInstances, setListInstances] = useState({});
   const [validationError, setValidationError] = useState("");
 
-  // Reset input when selection changes
+  // Reset inputs when selection changes
   useEffect(() => {
-    setEditValue("");
-    setListInstanceI("");
+    setBulkValues({});
+    setListInstances({});
     setValidationError("");
   }, [selectedPath]);
 
@@ -21,12 +21,20 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
     );
   }
 
-  const isWritable = selectedNode.node_type === 'parameter' && selectedNode.access === 'readWrite';
-  const showEditor = isWritable && viewMode === 'edit';
+  const instanceCount = (selectedPath.match(/{i}/g) || []).length;
+  const isListInstance = instanceCount > 0;
+  
+  // Edit mode constraints
+  const isWritableObject = selectedNode.node_type === 'object' && isListInstance;
+  const isWritableParam = selectedNode.node_type === 'parameter' && selectedNode.access === 'readWrite';
+  const showEditPanel = (isWritableObject || isWritableParam) && viewMode === 'edit';
+  
+  // View mode always allows generating GetParameterValues payload
+  const showViewPanel = viewMode === 'view';
 
-  const validateInput = (val) => {
+  const validateInput = (val, targetNode) => {
     // 1. Basic Type Validation
-    const baseType = selectedNode.data_type;
+    const baseType = targetNode.data_type;
     if (baseType && baseType.toLowerCase().includes('int')) {
       if (isNaN(val) || val.trim() === '') {
         return "Must be a valid integer.";
@@ -43,7 +51,7 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
     }
 
     // 2. Detailed Constraints Validation
-    const detailed = selectedNode.detailed_type;
+    const detailed = targetNode.detailed_type;
     if (detailed) {
       // Length / Max Length
       const maxLenMatch = detailed.match(/max_length:\s*(\d+)/);
@@ -65,7 +73,6 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
       const rangeMatch = detailed.match(/range:\s*\[([^,]+),\s*([^\]]+)\]/);
       if (rangeMatch) {
          const numVal = Number(val);
-         // CWMP ranges can be numeric strings. Provide safe fallback parsing.
          if (isNaN(numVal)) return "Must be a number for range validation.";
          const min = Number(rangeMatch[1]);
          const max = Number(rangeMatch[2]);
@@ -74,18 +81,13 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
          }
       }
       
-      // Enum
+      // Enum validation is inherently handled by the dropdowns for precise matches now.
       const enumMatch = detailed.match(/enum:\s*([^)]+)/);
       if (enumMatch) {
-        // Strip out trailing '...' if it was truncated by the backend
         let enumStr = enumMatch[1].trim();
         if (enumStr.endsWith('...')) {
           enumStr = enumStr.slice(0, -3).trim();
-          // If it's a truncated enum, we only loosely enforce it as a suggestion, 
-          // but if we want strict, we shouldn't fail them if they pass a valid one not in the top 5.
-          // For now, if we see '...', we just warn but allow, or we don't block.
         } else {
-          // Strict enum check
           const allowedVals = enumStr.split(',').map(s => s.trim());
           if (!allowedVals.includes(val.trim())) {
             return `Invalid value. Allowed values are: ${allowedVals.join(', ')}`;
@@ -96,41 +98,117 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
     return null;
   };
 
-  const isListInstance = selectedPath.includes('{i}');
-  const isBoolean = selectedNode.data_type === 'boolean';
-  const hasEnum = selectedNode.enum_values && selectedNode.enum_values.length > 0;
-  const isDropdown = isBoolean || hasEnum;
+  const resolveListInstances = (basePath) => {
+      let resolvedPath = basePath;
+      for (let idx = 0; idx < instanceCount; idx++) {
+          resolvedPath = resolvedPath.replace('{i}', listInstances[idx].trim());
+      }
+      return resolvedPath;
+  }
 
-  const handleGenerate = () => {
-    if (editValue.trim() === "") return;
-    if (isListInstance && listInstanceI.trim() === "") {
-       setValidationError("Please specify an instance index 'i' (e.g. 1)");
-       return;
+  const validateInstanceIndexes = () => {
+    if (isListInstance) {
+       for (let idx = 0; idx < instanceCount; idx++) {
+           if (!listInstances[idx] || listInstances[idx].trim() === "") {
+               setValidationError(`Please specify all instance indexes (missing Index ${idx + 1})`);
+               return false;
+           }
+       }
     }
+    return true;
+  }
 
-    const err = validateInput(editValue);
-    if (err) {
-      setValidationError(err);
-      return;
-    }
+  const handleGenerateGet = () => {
+    if (!validateInstanceIndexes()) return;
     setValidationError("");
-    onGenerateEdit(selectedPath, editValue, listInstanceI.trim() || null);
+
+    let resolvedPaths = [];
+    
+    if (selectedNode.node_type === 'parameter') {
+        resolvedPaths.push(resolveListInstances(selectedPath));
+    } else {
+        // If it's an object, GetParameterValues typically targets the parent object path 
+        // string (e.g "Device.DeviceInfo." instead of iterating children) to get all sub-nodes.
+        resolvedPaths.push(resolveListInstances(selectedPath));
+    }
+
+    onGenerateGet(resolvedPaths);
   };
 
-  const renderInputControls = () => {
-    let inputEl;
+  const handleGenerateEdit = () => {
+    if (!validateInstanceIndexes()) return;
 
-    const hasEnums = Array.isArray(selectedNode.enum_values) && selectedNode.enum_values.length > 0;
-    const isBoolean = selectedNode.data_type && selectedNode.data_type.toLowerCase() === 'boolean';
+    const payloadBatches = [];
+
+    // Evaluate single parameter
+    if (isWritableParam) {
+      const val = bulkValues[selectedNode.name] || "";
+      if (val.trim() === "") {
+         setValidationError("A parameter value is required.");
+         return; 
+      }
+      
+      const err = validateInput(val, selectedNode);
+      if (err) {
+        setValidationError(`${selectedNode.name}: ${err}`);
+        return;
+      }
+      payloadBatches.push({
+        path: resolveListInstances(selectedPath),
+        value: val,
+        datatype: selectedNode.data_type || "string"
+      });
+    }
+
+    // Evaluate Object Bulk Editing
+    if (isWritableObject) {
+      const rwParams = selectedNode.children?.filter(c => c.node_type === 'parameter' && c.access === 'readWrite') || [];
+      
+      for (let param of rwParams) {
+        let val = bulkValues[param.name];
+        if (val === undefined || val.trim() === "") continue; // Skip unconfigured bulk properties
+        
+        const err = validateInput(val, param);
+        if (err) {
+          setValidationError(`[${param.name}]: ${err}`);
+          return;
+        }
+
+        // Construct full path for payload (e.g. Device.IP.Interface.{i}.Enable)
+        // Since selectedPath points to Device.IP.Interface.{i}. we append the param name
+        const paramPath = selectedPath.endsWith('.') ? `${selectedPath}${param.name}` : `${selectedPath}.${param.name}`;
+        payloadBatches.push({
+          path: resolveListInstances(paramPath),
+          value: val,
+          datatype: param.data_type || "string"
+        });
+      }
+      
+      if (payloadBatches.length === 0) {
+         setValidationError("Please fill out at least one parameter to generate XML payload.");
+         return;
+      }
+    }
+
+    setValidationError("");
+    onGenerateEdit(payloadBatches, null);
+  };
+
+  const handleBulkChange = (paramName, val) => {
+    setBulkValues(prev => ({...prev, [paramName]: val}));
+    setValidationError("");
+  };
+
+  const renderSingleInput = (paramNode) => {
+    const hasEnums = Array.isArray(paramNode.enum_values) && paramNode.enum_values.length > 0;
+    const isBoolean = paramNode.data_type && paramNode.data_type.toLowerCase() === 'boolean';
+    const currentValue = bulkValues[paramNode.name] || "";
 
     if (hasEnums || isBoolean) {
-      inputEl = (
+      return (
         <select 
-          value={editValue}
-          onChange={(e) => {
-             setEditValue(e.target.value);
-             setValidationError("");
-          }}
+          value={currentValue}
+          onChange={(e) => handleBulkChange(paramNode.name, e.target.value)}
           style={{ flexGrow: 1, padding: '0.4rem', borderRadius: '4px', border: '1px solid #45475a', backgroundColor: '#1e1e2e', color: '#cdd6f4' }}
         >
           <option value="">-- Select a value --</option>
@@ -140,58 +218,111 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
               <option value="false">false</option>
             </>
           )}
-          {hasEnums && selectedNode.enum_values.map(v => (
+          {hasEnums && paramNode.enum_values.map(v => (
             <option key={v} value={v}>{v}</option>
           ))}
         </select>
       );
     } else {
-      inputEl = (
+      return (
         <input 
           type="text" 
           placeholder={`Value`}
-          value={editValue}
-          onChange={(e) => {
-            setEditValue(e.target.value);
-            setValidationError("");
-          }}
+          value={currentValue}
+          onChange={(e) => handleBulkChange(paramNode.name, e.target.value)}
           style={{ flexGrow: 1 }}
         />
       );
     }
+  };
 
-    if (isListInstance) {
-      return (
-        <div style={{ width: '100%', marginBottom: '1rem' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#181825', borderRadius: '6px', overflow: 'hidden' }}>
-            <thead>
-              <tr>
-                <th style={{ padding: '8px', borderBottom: '1px solid #313244', textAlign: 'left', width: '30%', color: '#a6adc8', fontSize: '0.9rem' }}>i (Instance)</th>
-                <th style={{ padding: '8px', borderBottom: '1px solid #313244', textAlign: 'left', color: '#a6adc8', fontSize: '0.9rem' }}>Parameter Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={{ padding: '8px', borderBottom: '1px solid #313244' }}>
-                  <input type="text" placeholder="e.g. 1" value={listInstanceI} onChange={e => { setListInstanceI(e.target.value); setValidationError(""); }} style={{ width: '100%', padding: '0.4rem', borderRadius: '4px', border: '1px solid #45475a', backgroundColor: '#1e1e2e', color: '#cdd6f4' }} />
-                </td>
-                <td style={{ padding: '8px', borderBottom: '1px solid #313244' }}>
-                  <div style={{ display: 'flex' }}>
-                    {inputEl}
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p style={{ fontSize: '0.8rem', color: '#a6adc8', marginTop: '0.5rem' }}>Generating XML will automatically inject {"<index>"}{listInstanceI || 'i'}{"</index>"} as the instance key.</p>
-        </div>
-      );
-    } else {
-      return (
-        <div className="input-group">
-          {inputEl}
-        </div>
-      );
+  const renderInstanceInputs = () => {
+    const inputs = [];
+    for (let idx = 0; idx < instanceCount; idx++) {
+       inputs.push(
+         <div key={idx} style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center' }}>
+           <label style={{ width: '80px', color: '#a6adc8', fontSize: '0.9rem' }}>Index {idx + 1}</label>
+           <input 
+             type="text" 
+             placeholder="e.g. 1" 
+             value={listInstances[idx] || ""} 
+             onChange={e => { 
+                 const val = e.target.value; 
+                 setListInstances(prev => ({...prev, [idx]: val})); 
+                 setValidationError(""); 
+             }} 
+             style={{ width: '100px', padding: '0.4rem', borderRadius: '4px', border: '1px solid #45475a', backgroundColor: '#1e1e2e', color: '#cdd6f4' }} 
+           />
+         </div>
+       );
+    }
+    return inputs;
+  };
+
+  const renderInputControls = () => {
+    if (isWritableParam) {
+        if (isListInstance) {
+          return (
+            <div style={{ width: '100%', marginBottom: '1rem' }}>
+              <div style={{ marginBottom: '1rem', padding: '10px', backgroundColor: '#181825', borderRadius: '6px', border: '1px solid #313244' }}>
+                 <p style={{ color: '#bac2de', fontSize: '0.9rem', marginBottom: '0.8rem', fontWeight: 'bold' }}>List Instances Definition</p>
+                 {renderInstanceInputs()}
+              </div>
+              <div style={{ marginBottom: '0.5rem', color: '#bac2de', fontWeight: 'bold', fontSize: '0.9rem' }}>Parameter Value</div>
+              <div style={{ display: 'flex' }}>
+                 {renderSingleInput(selectedNode)}
+              </div>
+              <p style={{ fontSize: '0.8rem', color: '#a6adc8', marginTop: '0.8rem' }}>Generating XML will automatically inject indices into the hierarchy.</p>
+            </div>
+          );
+        } else {
+          return (
+            <div className="input-group">
+              {renderSingleInput(selectedNode)}
+            </div>
+          );
+        }
+    }
+
+    if (isWritableObject) {
+       const rwParams = selectedNode.children?.filter(c => c.node_type === 'parameter' && c.access === 'readWrite') || [];
+       if (rwParams.length === 0) {
+           return <p style={{ color: '#a6adc8' }}>No writable parameters exist under this list object.</p>;
+       }
+
+       return (
+         <div style={{ width: '100%', marginBottom: '1rem' }}>
+           <div style={{ marginBottom: '1.5rem', padding: '10px', backgroundColor: '#181825', borderRadius: '6px', border: '1px solid #313244' }}>
+              <p style={{ color: '#bac2de', fontSize: '0.9rem', marginBottom: '0.8rem', fontWeight: 'bold' }}>List Instances Definition</p>
+              {renderInstanceInputs()}
+           </div>
+
+           <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#181825', borderRadius: '6px', overflow: 'hidden' }}>
+             <thead>
+               <tr>
+                 <th style={{ padding: '8px', borderBottom: '1px solid #313244', textAlign: 'left', width: '40%', color: '#a6adc8', fontSize: '0.9rem' }}>Parameter</th>
+                 <th style={{ padding: '8px', borderBottom: '1px solid #313244', textAlign: 'left', color: '#a6adc8', fontSize: '0.9rem' }}>Value Input</th>
+               </tr>
+             </thead>
+             <tbody>
+               {rwParams.map(param => (
+                  <tr key={param.name}>
+                    <td style={{ padding: '8px', borderBottom: '1px solid #313244', color: '#cdd6f4', fontSize: '0.9rem' }}>
+                       {param.name}
+                       {param.data_type && <span style={{ marginLeft: '6px', color: '#6c7086', fontSize: '0.8rem' }}>({param.data_type})</span>}
+                    </td>
+                    <td style={{ padding: '8px', borderBottom: '1px solid #313244' }}>
+                      <div style={{ display: 'flex' }}>
+                         {renderSingleInput(param)}
+                      </div>
+                    </td>
+                  </tr>
+               ))}
+             </tbody>
+           </table>
+           <p style={{ fontSize: '0.8rem', color: '#a6adc8', marginTop: '0.5rem' }}>Unconfigured rows will be ignored. Generating XML will queue SetParameterValues for all populated inputs with the provided instance route.</p>
+         </div>
+       );
     }
   };
 
@@ -249,10 +380,15 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
         </tbody>
       </table>
 
-      {showEditor && (
+      {showEditPanel && (
         <div className="editor-panel">
           <h3 style={{ color: '#89b4fa', marginBottom: '1rem' }}>Edit Configuration (CWMP SetParameterValues)</h3>
-          {isListInstance ? null : (
+          {isListInstance && isWritableObject && (
+            <p style={{ color: '#a6adc8', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              Bulk editing mode active. Populate the inputs below to set multiple parameters for list instance `{selectedNode.name}` simultaneously.
+            </p>
+          )}
+          {!isListInstance && isWritableParam && (
             <p style={{ color: '#a6adc8', marginBottom: '1rem', fontSize: '0.9rem' }}>
               Set a new value for this parameter to generate a CWMP SetParameterValues SOAP envelope.
             </p>
@@ -267,10 +403,43 @@ const Editor = ({ selectedNode, selectedPath, onGenerateEdit, viewMode }) => {
           {renderInputControls()}
 
           <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="btn" onClick={handleGenerate}>
+            <button className="btn" onClick={handleGenerateEdit}>
               Generate XML
             </button>
           </div>
+        </div>
+      )}
+
+      {showViewPanel && (
+        <div className="editor-panel" style={{ marginTop: '2rem', borderTop: '2px dashed #45475a', paddingTop: '1.5rem' }}>
+          <h3 style={{ color: '#a6e3a1', marginBottom: '1rem' }}>Generate Status Request (CWMP GetParameterValues)</h3>
+          <p style={{ color: '#a6adc8', marginBottom: '1rem', fontSize: '0.9rem' }}>
+             Request the CPE to return the current value(s) for the selected {selectedNode.node_type} path.
+          </p>
+
+          {validationError && (
+             <div style={{ padding: '0.5rem', marginBottom: '1rem', backgroundColor: 'rgba(243, 139, 168, 0.2)', color: '#f38ba8', borderLeft: '4px solid #f38ba8', fontSize: '0.85rem' }}>
+               ❌ <strong>Validation Error:</strong> {validationError}
+             </div>
+          )}
+
+          {isListInstance ? (
+            <div style={{ width: '100%', marginBottom: '1rem' }}>
+              <div style={{ padding: '10px', backgroundColor: '#181825', borderRadius: '6px', border: '1px solid #313244' }}>
+                <p style={{ color: '#bac2de', fontSize: '0.9rem', marginBottom: '0.8rem', fontWeight: 'bold' }}>Resolve List Instances ({selectedNode.name})</p>
+                {renderInstanceInputs()}
+              </div>
+              <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn" style={{ backgroundColor: '#a6e3a1', color: '#11111b' }} onClick={handleGenerateGet}>
+                  Generate GetParameterValues
+                </button>
+              </div>
+            </div>
+          ) : (
+             <div style={{ padding: '1rem', marginTop: '1rem', backgroundColor: 'rgba(166, 227, 161, 0.1)', color: '#a6e3a1', borderRadius: '4px', border: '1px solid rgba(166, 227, 161, 0.3)', fontSize: '0.9rem', textAlign: 'center' }}>
+               ✨ XML Payloads are automatically generated upon selection for parameters without list instances `{'{i}'}` ✨
+             </div>
+          )}
         </div>
       )}
     </div>
