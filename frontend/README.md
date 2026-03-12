@@ -1,16 +1,20 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ReactとViteを用いたSPA (Single Page Application) です。
 
-Currently, two official plugins are available:
+## 主な機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Viewモード / Editモード**: 権限に応じた2つの閲覧モード。
+- **データモデルツリー表示**: 膨大なパラメータをモダンで高速なツリーコンポーネントで表示。
+- **NETCONF/CWMP エディタ**: リアルタイムで `SetParameterValues` XMLペイロードを構築し、シンタックスハイライトして表示。
+- **Lint機能**: XMLの構文チェック機能を提供。
 
-## React Compiler
+## 開発環境
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js
+- React 18
+- Vite
 
-## Expanding the ESLint configuration
+## 起動
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+プロジェクトルートの `start.ps1` を実行するか、直接 `npm run dev` を実行します。

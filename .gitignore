@@ -1,19 +1,48 @@
+# OS Generate Files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
 venv/
 .venv/
-__pycache__/
-*.pyc
+env/
+.env/
+Pipfile.lock
 .pytest_cache/
+htmlcov/
+.coverage
+.ruff_cache/
 
+# Node & Frontend
 node_modules/
 dist/
 build/
+.npm
+package-lock.json
+*.log
+.vite-temp/
+
+# Environment Variables
 .env
+.env.local
+.env.*.local
 
 # E2E Test Reports
 e2e/playwright-report/
 e2e/test-results/
+playwright-report/
+test-results/
 
-# data配下の生データのうち、VCSに含めたくない一時的な加工ファイルなど
+# Data and Temp
 data/temp/
 
 # AI Assistants and Tools
@@ -25,5 +54,5 @@ data/temp/
 .claude*
 .cascade/
 
-# Documentation
-AGENT.md
+# Documentation ignored from VC if needed
+# AGENT.md

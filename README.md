@@ -4,10 +4,12 @@ Broadband Forumのデータモデル (TR-181, TR-196, TR-262) をブラウザ上
 
 ## プロジェクト構成
 
-- `backend/`: Python (FastAPI) によるAPIサーバー。複雑なXMLデータモデルのパースとJSON構造への変換を担当。
-- `frontend/`: React (Vite) を用いたシングルページアプリケーション (SPA)。高度なツリー・テーブルビューやエディタを提供。
-- `data/`: 解析対象となる各種XMLファイルなどの入力ソース類を配置。
-- `docs/`: アプリケーションの操作手順書やドキュメント群。
+- [`backend/`](backend/README.md): Python (FastAPI) によるAPIサーバー。複雑なXMLデータモデルのパースとJSON構造への変換を担当。
+- [`frontend/`](frontend/README.md): React (Vite) を用いたシングルページアプリケーション (SPA)。高度なツリー・テーブルビューやエディタを提供。
+- [`translator/`](translator/README.md): 英語のXML定義から日本語へ翻訳するためのサブツール。
+- [`e2e/`](e2e/README.md): Playwrightを使ったE2Eテスト環境。
+- [`data/`](data/README.md): 解析対象となる各種XMLファイルなどの入力ソース類を配置。
+- [`docs/`](docs/README.md): アプリケーションのアーキテクチャやドキュメント群。
 
 ## 主な機能と特徴
 

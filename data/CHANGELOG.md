@@ -9,14 +9,16 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2025-12-01: TR-106 Amendment 16 Corrigendum 1 and [TR-181 Issue 2 Amendment 20 Corrigendum 1]
 
-*Tags: [v2025.4] (data models), 
-       [v2.20.1][TR-181-v2.20.1] (TR-181), 
+*Tags: [v2025.4] (data models),
+       [v2.20.1][TR-181-v2.20.1] (TR-181),
        [v1.16.1][TR-106-v1.16.1] (TR-106)*
 
 ### TR-106
+
 * Add more bibrefs
 
 ### TR-181
+
 * Fixed Cellular APN type to be compatible with the 5G Data Network Name
 * Changed Cellular SIM Location parameter to be read-only
 * Added additional bibrefs to PON power safe parameter
@@ -25,14 +27,16 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2025-11-11: TR-106 Amendment 16 and [TR-181 Issue 2 Amendment 20]
 
-*Tags: [v2025.3] (data models), 
-       [v2.20.0][TR-181-v2.20.0] (TR-181), 
+*Tags: [v2025.3] (data models),
+       [v2.20.0][TR-181-v2.20.0] (TR-181),
        [v1.16.0][TR-106-v1.16.0] (TR-106)*
 
 ### TR-106
+
 * No changes
 
 ### TR-181
+
 * Added support for periodic file uploads via Device.PeriodicFileTransfer.
 * Added support for hardware specific information under Device.Hardware.
 * Added support for configuring device internal connection monitoring mechanisms and automatic remedies under Device.ConnectionMonitoring.
@@ -41,11 +45,11 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 * Added support for the Wi-Fi Data Elements feature "Wi-Fi Configuration Templates" under Device.WiFi.Templates.
 * Added Device.DeviceInfo.Reboots.CurrentBootCycle
 * Added peripheral power management for
-  - Ethernet to Device.Ethernet.Interface.{i}.
-  - USB to Device.USB.Port.{i}.
-  - Wi-Fi to Device.WiFi.Radio.{i}.
-  - Thread to Device.Thread.Radio.{i}.
-  - XPON to Device.XPON.ONU.{i}.PowerManagement.
+  * Ethernet to Device.Ethernet.Interface.{i}.
+  * USB to Device.USB.Port.{i}.
+  * Wi-Fi to Device.WiFi.Radio.{i}.
+  * Thread to Device.Thread.Radio.{i}.
+  * XPON to Device.XPON.ONU.{i}.PowerManagement.
 * Added USB device state reporting and the ability to configure which USB devices are allowed to connect via the Device.USB.USBHosts.AllowedDevice.{i}. table
 * Added Type and Interface parameters to Device.HomePlug.Interface.{i}.
 * Marked Wi-Fi commands FullScan(), ChannelScan(), Disassociate(), and BTMRequest() obsoleted
@@ -71,27 +75,30 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2025-04-23: [TR-181 Issue 2 Amendment 19 Corrigendum 1]
 
-*Tags: [v2025.2] (data models), 
-       [v2.19.1][TR-181-v2.19.1] (TR-181), 
+*Tags: [v2025.2] (data models),
+       [v2.19.1][TR-181-v2.19.1] (TR-181),
        [v1.15.0][TR-106-v1.15.0] (TR-106 didn't change)*
 
 ### TR-181
+
 * Fix the order of some datamodel objects in the rendered HTML
 * Explain permissions behaviour for Get messages
 * Add missing spec attributes, messing up the diffs from future versions
 
 ## 2025-04-10: TR-106 Amendment 15 and [TR-181 Issue 2 Amendment 19]
 
-*Tags: [v2025.1] (data models), 
-       [v2.19.0][TR-181-v2.19.0] (TR-181), 
+*Tags: [v2025.1] (data models),
+       [v2.19.0][TR-181-v2.19.0] (TR-181),
        [v1.15.0][TR-106-v1.15.0] (TR-106)*
 
 ### TR-106
+
 * Allow versions with 3 components
 * Allow overriding Command version
 * Allow overriding Event version
 
 ### TR-181
+
 * Included LinkReadWrite component instead of Link component on all networking interfaces and automatically create most of the Parameters
 * Added support for Cellular short message service
 * Revamped Device.Cellular.Interface.
@@ -132,17 +139,18 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2024-09-04: TR-181 Issue 2 Amendment 18 Corrigendum 1
 
-*Tags: [v1.6.10] (data models), 
-       [v2.18.1][TR-181-v2.18.1] (TR-181), 
+*Tags: [v1.6.10] (data models),
+       [v2.18.1][TR-181-v2.18.1] (TR-181),
        [v1.14.0][TR-106-v1.14.0] (TR-106 didn't change)*
 
 ## 2024-07-23: [TR-106 Amendment 14] and [TR-181 Issue 2 Amendment 18]
 
-*Tags: [v1.6.9] (data models), 
-       [v2.18.0][TR-181-v2.18.0] (TR-181), 
+*Tags: [v1.6.9] (data models),
+       [v2.18.0][TR-181-v2.18.0] (TR-181),
        [v1.14.0][TR-106-v1.14.0] (TR-106)*
 
 ### TR-181
+
 * Added more counter types to IoT
 * Improved MoCA network state parameter descriptions
 * Added new parameter to support VLAN priority
@@ -184,11 +192,12 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2024-01-18: [TR-106 Amendment 13] and [TR-181 Issue 2 Amendment 17]
 
-*Tags: [v1.6.8] (data models), 
-       [v2.17.0][TR-181-v2.17.0] (TR-181), 
+*Tags: [v1.6.8] (data models),
+       [v2.17.0][TR-181-v2.17.0] (TR-181),
        [v1.13.0][TR-106-v1.13.0] (TR-106)*
 
 ### TR-181
+
 * Added new parameters for Multi-flow and Multi-server testing
   capability as defined in TR-471 Issue 4
 * Updated MoCA data model with MoCA Alliance 2.5 specification
@@ -233,11 +242,12 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2023-06-14: [TR-106 Amendment 12] and [TR-181 Issue 2 Amendment 16]
 
-*Tags: [v1.6.7] (data models), 
-       [v2.16.0][TR-181-v2.16.0] (TR-181), 
+*Tags: [v1.6.7] (data models),
+       [v2.16.0][TR-181-v2.16.0] (TR-181),
        [v1.12.0][TR-106-v1.12.0] (TR-106)*
 
 ### TR-181
+
 * Added Device.LocalAgent.Subscription.{i}.TriggerAction parameter to
   control the notification behavior
 * Added SecuredRoles concept to the USP-specific ControllerTrust
@@ -290,21 +300,23 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2022-07-19: TR-196 Issue 2 Amendment 1 Corrigendum 2
 
-*Tags: [v1.6.6] (data models), 
-       [v2.15.1][TR-181-v2.15.1] (TR-181 didn't change), 
+*Tags: [v1.6.6] (data models),
+       [v2.15.1][TR-181-v2.15.1] (TR-181 didn't change),
        [v1.11.0][TR-106-v1.11.0] (TR-106 didn't change)*
 
 ### TR-196
+
 * Deprecated Blacklisted parameters and replaced with Blocklisted
   parameters
 
 ## 2022-04-06: TR-181 Issue 2 Amendment 15 Corrigendum 1
 
-*Tags: [v1.6.5] (data models), 
-       [v2.15.1][TR-181-v2.15.1] (TR-181), 
+*Tags: [v1.6.5] (data models),
+       [v2.15.1][TR-181-v2.15.1] (TR-181),
        [v1.11.0][TR-106-v1.11.0] (TR-106 didn't change)*
 
 ### TR-181
+
 * Removed items that were erroneously added to the User:1 profile and
   instead added them to a new User:2 profile
 * Fixed the BulkData Profile Parameter reference; it's a string, not a
@@ -315,11 +327,12 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2022-01-27: [TR-106 Amendment 11] and [TR-181 Issue 2 Amendment 15]
 
-*Tags: [v1.6.4] (data models), 
-       [v2.15.0][TR-181-v2.15.0] (TR-181), 
+*Tags: [v1.6.4] (data models),
+       [v2.15.0][TR-181-v2.15.0] (TR-181),
        [v1.11.0][TR-106-v1.11.0] (TR-106)*
 
 ### TR-106
+
 * Allowed the *version* attribute in component references
 * Allowed *minEntries* and *maxEntries* in command and event
   argument objects
@@ -327,6 +340,7 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 * Added *secured* attribute
 
 ### TR-181
+
 * Split the XML into multiple smaller files (this is just
   housekeeping; it doesn't affect how the model is used)
 * Added Device.USPAgent to the CWMP model to allow a CWMP ACS
@@ -370,25 +384,28 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2020-11-17: TR-181 Issue 2 Amendment 14 Corrigendum 1
 
-*Tags: [v1.6.3] (data models), 
-       [v2.14.1][TR-181-v2.14.1] (TR-181), 
+*Tags: [v1.6.3] (data models),
+       [v2.14.1][TR-181-v2.14.1] (TR-181),
        [v1.10.0][TR-106-v1.10.0] (TR-106 didn't change)*
 
 ### TR-181
+
 * Removed duplicate remarks about CWMP BOOTSTRAP from descriptions
 * Fixed typos
 
 ## 2020-11-05: [TR-106 Amendment 10] and [TR-181 Issue 2 Amendment 14]
 
-*Tags: [v1.6.2] (data models), 
-       [v2.14.0][TR-181-v2.14.0] (TR-181), 
+*Tags: [v1.6.2] (data models),
+       [v2.14.0][TR-181-v2.14.0] (TR-181),
        [v1.10.0][TR-106-v1.10.0] (TR-106)*
 
 ### TR-106
+
 * Allowed command attributes, e.g. mandatory, in component
   definitions
 
 ### TR-181
+
 * Added WWC (5G Wireline Wireless Convergence), PDU (Protocol Data
   Unit) and FWE (5G Wireline wireless Encapsulation) top-level objects
 * Updated Cellular object to be applicable to 5G Residential Gateways
@@ -399,8 +416,8 @@ can be found at <https://cwmp-data-models.broadband-forum.org>.
 
 ## 2020-04-06: v1.6.1
 
-*Tags: [v1.6.1] (data models), 
-       [v2.13.0][TR-181-v2.13.0] (TR-181 didn't change), 
+*Tags: [v1.6.1] (data models),
+       [v2.13.0][TR-181-v2.13.0] (TR-181 didn't change),
        [v1.7.0+][TR-106-v1.7.0+] (TR-106 didn't change)*
 
 Regenerated HTML using new [report.pl#425](https://github.com/BroadbandForum/cwmp-xml-tools/releases/tag/report.pl%23425)
@@ -408,20 +425,22 @@ version of the BBF report tool
 
 ## 2020-01-17: TR-104 Issue 2 Corrigendum 2
 
-*Tags: [v1.6.0c1] (data models), 
-       [v2.13.0][TR-181-v2.13.0] (TR-181 didn't change), 
+*Tags: [v1.6.0c1] (data models),
+       [v2.13.0][TR-181-v2.13.0] (TR-181 didn't change),
        [v1.7.0+][TR-106-v1.7.0+] (TR-106 didn't change)*
 
 ### TR-104
+
 * Clarified meaning of SessionID and added new SIPSessionID
 
 ## 2019-09-05: [TR-181 Issue 2 Amendment 13], TR-104 Issue 2 Corrigendum 1, TR-135 Amendment 4 Corrigendum 1, TR-140 Amendment 3 Corrigendum 1 and TR-196 Issue 2 Amendment 1 Corrigendum 1
 
-*Tags: [v1.6.0+] (data models), 
-       [v2.13.0][TR-181-v2.13.0] (TR-181), 
+*Tags: [v1.6.0+] (data models),
+       [v2.13.0][TR-181-v2.13.0] (TR-181),
        [v1.7.0+][TR-106-v1.7.0+] (TR-106 didn't change)*
 
 ### TR-181
+
 * Added support for WFA Data Elements
 * Added support for Multi AP
 * Added support for WPA3 and 802.11ax
@@ -432,11 +451,12 @@ version of the BBF report tool
 
 ## 2018-03-18: [TR-181 Issue 2 Amendment 12]
 
-*Tags: [v1.6.0] (data models), 
-       [v2.12.0][TR-181-v2.12.0] (TR-181), 
+*Tags: [v1.6.0] (data models),
+       [v2.12.0][TR-181-v2.12.0] (TR-181),
        [v1.7.0+][TR-106-v1.7.0+] (TR-106)*
 
 ### TR-181
+
 * Added TR-069a6 support
 * Added Firmware Image support
 * Added Ethernet Link Aggregation Group

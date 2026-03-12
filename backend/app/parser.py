@@ -7,23 +7,28 @@ import functools
 logger = logging.getLogger(__name__)
 
 # Data dir path relative to this backend module
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+)
 TARGET_PREFIXES = ["tr-181", "tr-196", "tr-262"]
+
 
 @functools.lru_cache(maxsize=1)
 def get_available_models():
     """Returns a list of all available XML models from the cwmp-data-models directory."""
     if not os.path.exists(DATA_DIR):
         return []
-    
+
     xml_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".xml")]
     return sorted(xml_files)
+
 
 def _find_xml_file(model_name: str) -> str:
     path = os.path.join(DATA_DIR, model_name)
     if os.path.exists(path):
         return path
     return None
+
 
 @functools.lru_cache(maxsize=10)
 def parse_xml_to_dict(model_name: str) -> dict:
@@ -45,15 +50,26 @@ def parse_xml_to_dict(model_name: str) -> dict:
     global_datatypes = {}
     for dt_elem in get_elements_by_local_name(root, "dataType"):
         dt_name = dt_elem.get("name")
-        if not dt_name: # skip inner <dataType ref="...">
+        if not dt_name:  # skip inner <dataType ref="...">
             continue
-            
+
         dt_base = dt_elem.get("base")
         underlying_type = None
         constraints = []
         for child in dt_elem:
             c_tag = etree.QName(child).localname
-            if c_tag in ["string", "unsignedInt", "int", "boolean", "dateTime", "base64", "hexBinary", "list", "unsignedLong", "long"]:
+            if c_tag in [
+                "string",
+                "unsignedInt",
+                "int",
+                "boolean",
+                "dateTime",
+                "base64",
+                "hexBinary",
+                "list",
+                "unsignedLong",
+                "long",
+            ]:
                 underlying_type = c_tag
                 for grand_child in child:
                     gc_tag = etree.QName(grand_child).localname
@@ -77,14 +93,14 @@ def parse_xml_to_dict(model_name: str) -> dict:
                         val = grand_child.get("value")
                         if val:
                             constraints.append(f"pattern {val}")
-                        
+
         global_datatypes[dt_name] = {
             "name": dt_name,
             "base": dt_base,
             "underlying_type": underlying_type,
-            "constraints": constraints
+            "constraints": constraints,
         }
-        
+
     # Resolve bases
     for _ in range(3):
         for dt_name, dt_info in global_datatypes.items():
@@ -94,7 +110,9 @@ def parse_xml_to_dict(model_name: str) -> dict:
                     dt_info["underlying_type"] = base_info["underlying_type"]
                 # append base constraints before local constraints
                 # Use a new list to prevent accumulating wildly in place
-                combined_constraints = list(dict.fromkeys(base_info["constraints"] + dt_info["constraints"]))
+                combined_constraints = list(
+                    dict.fromkeys(base_info["constraints"] + dt_info["constraints"])
+                )
                 dt_info["constraints"] = combined_constraints
                 dt_info["base"] = base_info["base"]
 
@@ -106,19 +124,19 @@ def parse_xml_to_dict(model_name: str) -> dict:
         "node_type": "object",
         "access": "readOnly",
         "description": f"Root node for {model_name}",
-        "children": []
+        "children": [],
     }
 
     # Helper to map CWMP paths (e.g., Device.DeviceInfo.) to the hierarchical JSON
-    nodes_map = {"": root_json} # Map of path -> node
+    nodes_map = {"": root_json}  # Map of path -> node
 
     for obj in objects:
         obj_name = obj.get("name", "")
         if not obj_name:
             continue
-            
+
         access = obj.get("access", "readOnly")
-        
+
         # safely extract description using wildcard namespace
         description = ""
         desc_elem = obj.find("{*}description")
@@ -129,7 +147,7 @@ def parse_xml_to_dict(model_name: str) -> dict:
         is_list = "{i}" in obj_name
         # Remove trailing dot for the standard node name mapping
         clean_name = obj_name.rstrip(".")
-        
+
         parts = clean_name.split(".")
         name = parts[-1]
 
@@ -139,13 +157,13 @@ def parse_xml_to_dict(model_name: str) -> dict:
             "access": "readWrite" if is_list else access,
             "detailed_type": "List" if is_list else "",
             "description": description,
-            "children": []
+            "children": [],
         }
 
         # Ensure parent exists in our map, string it together
         current_path_builder = ""
         last_parent = root_json
-        
+
         for p in parts[:-1]:
             current_path_builder += p
             if current_path_builder not in nodes_map:
@@ -155,7 +173,7 @@ def parse_xml_to_dict(model_name: str) -> dict:
                     "node_type": "object",
                     "access": "readOnly",
                     "description": "",
-                    "children": []
+                    "children": [],
                 }
                 last_parent["children"].append(intermediate)
                 nodes_map[current_path_builder] = intermediate
@@ -171,44 +189,46 @@ def parse_xml_to_dict(model_name: str) -> dict:
         for p in params:
             p_name = p.get("name", "")
             p_access = p.get("access", "readOnly")
-            
+
             p_desc = ""
             desc_elem = p.find("{*}description")
             if desc_elem is not None and desc_elem.text:
                 p_desc = desc_elem.text.strip()
-                
+
             syntax_elem = p.find("{*}syntax")
             default_value = ""
             data_type = "string"
             detailed_type = ""
-            
+
             if syntax_elem is not None:
                 default_elem = syntax_elem.find("{*}default")
                 if default_elem is not None:
                     default_value = default_elem.get("value", "")
-                    
-                type_kids = [c for c in syntax_elem if etree.QName(c).localname != "default"]
+
+                type_kids = [
+                    c for c in syntax_elem if etree.QName(c).localname != "default"
+                ]
                 if type_kids:
                     type_elem = type_kids[0]
                     type_tag = etree.QName(type_elem).localname
                     constraints = []
-                    
+
                     if type_tag == "dataType":
-                         ref = type_elem.get("ref", "")
-                         if ref and ref in global_datatypes:
-                             dt_info = global_datatypes[ref]
-                             data_type = dt_info["underlying_type"] or "string"
-                             constraints = dt_info["constraints"].copy()
-                             detailed_type = f"[{ref}]"
-                         elif ref:
-                             detailed_type = f"Resolved from {ref}"
-                             data_type = "string"
+                        ref = type_elem.get("ref", "")
+                        if ref and ref in global_datatypes:
+                            dt_info = global_datatypes[ref]
+                            data_type = dt_info["underlying_type"] or "string"
+                            constraints = dt_info["constraints"].copy()
+                            detailed_type = f"[{ref}]"
+                        elif ref:
+                            detailed_type = f"Resolved from {ref}"
+                            data_type = "string"
                     elif type_tag == "list":
-                         data_type = "string"
-                         detailed_type = "Comma-separated list"
+                        data_type = "string"
+                        detailed_type = "Comma-separated list"
                     else:
-                         data_type = type_tag # boolean, string, unsignedInt, dateTime
-                         
+                        data_type = type_tag  # boolean, string, unsignedInt, dateTime
+
                     # Check for constraints on parameter itself
                     for child in type_elem:
                         c_tag = etree.QName(child).localname
@@ -232,17 +252,22 @@ def parse_xml_to_dict(model_name: str) -> dict:
                             val = child.get("value")
                             if val:
                                 constraints.append(f"pattern {val}")
-                    
+
                     enums = []
                     other_constraints = []
                     for c in constraints:
-                         if not c.startswith("length:") and not c.startswith("max_length:") and not c.startswith("range:") and not c.startswith("pattern "):
-                             if c not in enums:
-                                 enums.append(c)
-                         else:
-                             if c not in other_constraints:
-                                 other_constraints.append(c)
-                    
+                        if (
+                            not c.startswith("length:")
+                            and not c.startswith("max_length:")
+                            and not c.startswith("range:")
+                            and not c.startswith("pattern ")
+                        ):
+                            if c not in enums:
+                                enums.append(c)
+                        else:
+                            if c not in other_constraints:
+                                other_constraints.append(c)
+
                     details_parts = []
                     if detailed_type:
                         details_parts.append(detailed_type)
@@ -250,7 +275,7 @@ def parse_xml_to_dict(model_name: str) -> dict:
                         details_parts.append("enum: " + ", ".join(enums))
                     if other_constraints:
                         details_parts.append(" | ".join(other_constraints))
-                        
+
                     detailed_type = " | ".join(details_parts) if details_parts else ""
 
             param_node = {
@@ -259,13 +284,14 @@ def parse_xml_to_dict(model_name: str) -> dict:
                 "access": p_access,
                 "data_type": data_type,
                 "detailed_type": detailed_type,
-                "enum_values": enums if 'enums' in locals() else [],
+                "enum_values": enums if "enums" in locals() else [],
                 "default_value": default_value,
-                "description": p_desc
+                "description": p_desc,
             }
             node["children"].append(param_node)
 
     return root_json
+
 
 def get_unified_tree() -> dict:
     """Parses all available model files and unifies them under a single virtual Root."""
@@ -275,9 +301,9 @@ def get_unified_tree() -> dict:
         "node_type": "object",
         "access": "readOnly",
         "description": "Unified view of all available BBF CWMP Models",
-        "children": []
+        "children": [],
     }
-    
+
     for m in models:
         try:
             data = parse_xml_to_dict(m)
@@ -285,8 +311,9 @@ def get_unified_tree() -> dict:
             root_node["children"].append(data)
         except Exception as e:
             logger.warning(f"Skipping {m} in unified tree due to error: {e}")
-            
+
     return root_node
+
 
 def _map_datatype_to_xsd(datatype: str) -> str:
     """Helper to map BBF data types to xsd types for xsi:type."""
@@ -304,7 +331,14 @@ def _map_datatype_to_xsd(datatype: str) -> str:
     else:
         return "xsd:string"
 
-def generate_cwmp_set_parameter_values(target_path: str, value: Any, datatype: str = "string", existing_xml: str = None, list_instances: Any = None) -> str:
+
+def generate_cwmp_set_parameter_values(
+    target_path: str,
+    value: Any,
+    datatype: str = "string",
+    existing_xml: str = None,
+    list_instances: Any = None,
+) -> str:
     """
     Generates a CWMP SetParameterValues SOAP 1.1 XML snippet.
     Appends the new ParameterValueStruct to existing_xml if provided.
@@ -318,7 +352,7 @@ def generate_cwmp_set_parameter_values(target_path: str, value: Any, datatype: s
         else:
             # Leave a placeholder if missing
             actual_path = actual_path.replace("{i}", "[INSERT_INSTANCE_INDEX]")
-            
+
     # Ensure parameter path ends appropriately (mostly they don't have trailing dot for parameters, but BBF paths might just be correct as passed)
 
     xsd_type = _map_datatype_to_xsd(datatype)
@@ -334,20 +368,20 @@ def generate_cwmp_set_parameter_values(target_path: str, value: Any, datatype: s
         "soapenc": SOAP_ENC,
         "xsd": XSD,
         "xsi": XSI,
-        "cwmp": CWMP
+        "cwmp": CWMP,
     }
 
     if existing_xml:
         try:
             parser_obj = etree.XMLParser(remove_blank_text=True)
-            root = etree.fromstring(existing_xml.encode('utf-8'), parser_obj)
-            
+            root = etree.fromstring(existing_xml.encode("utf-8"), parser_obj)
+
             # Find the ParameterList node
             param_list_nodes = root.xpath(".//ParameterList")
-            
+
             if param_list_nodes:
                 param_list = param_list_nodes[0]
-                
+
                 # Check if this parameter already exists, if so, update its Value
                 existing_param = None
                 for param_struct in param_list.findall("ParameterValueStruct"):
@@ -355,7 +389,7 @@ def generate_cwmp_set_parameter_values(target_path: str, value: Any, datatype: s
                     if name_node is not None and name_node.text == actual_path:
                         existing_param = param_struct
                         break
-                        
+
                 if existing_param is not None:
                     value_node = existing_param.find("Value")
                     if value_node is not None:
@@ -370,14 +404,20 @@ def generate_cwmp_set_parameter_values(target_path: str, value: Any, datatype: s
                     # setting xsi:type
                     val_elem.set(f"{{{XSI}}}type", xsd_type)
                     val_elem.text = str(value)
-                    
+
                     # Update arrayType count
                     current_count = len(param_list.findall("ParameterValueStruct"))
-                    param_list.set(f"{{{SOAP_ENC}}}arrayType", f"cwmp:ParameterValueStruct[{current_count}]")
-                
-                return etree.tostring(root, pretty_print=True, encoding="UTF-8").decode("utf-8")
+                    param_list.set(
+                        f"{{{SOAP_ENC}}}arrayType",
+                        f"cwmp:ParameterValueStruct[{current_count}]",
+                    )
+
+                return etree.tostring(root, pretty_print=True, encoding="UTF-8").decode(
+                    "utf-8"
+                )
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             logger.error(f"Failed to append to existing CWMP XML: {e}")
 
@@ -387,25 +427,28 @@ def generate_cwmp_set_parameter_values(target_path: str, value: Any, datatype: s
     cwmp_id = etree.SubElement(header, f"{{{CWMP}}}ID")
     cwmp_id.set(f"{{{SOAP_ENV}}}mustUnderstand", "1")
     cwmp_id.text = "1"
-    
+
     body = etree.SubElement(root, f"{{{SOAP_ENV}}}Body")
     spv = etree.SubElement(body, f"{{{CWMP}}}SetParameterValues")
-    
+
     param_list = etree.SubElement(spv, "ParameterList")
     param_list.set(f"{{{SOAP_ENC}}}arrayType", "cwmp:ParameterValueStruct[1]")
-    
+
     struct = etree.SubElement(param_list, "ParameterValueStruct")
     name_elem = etree.SubElement(struct, "Name")
     name_elem.text = actual_path
-    
+
     val_elem = etree.SubElement(struct, "Value")
     val_elem.set(f"{{{XSI}}}type", xsd_type)
     val_elem.text = str(value)
-    
+
     param_key = etree.SubElement(spv, "ParameterKey")
     param_key.text = "Update"
-    
-    return etree.tostring(root, pretty_print=True, encoding="UTF-8", xml_declaration=True).decode("utf-8")
+
+    return etree.tostring(
+        root, pretty_print=True, encoding="UTF-8", xml_declaration=True
+    ).decode("utf-8")
+
 
 def generate_cwmp_get_parameter_values(target_paths: list[str]) -> str:
     """
@@ -423,7 +466,7 @@ def generate_cwmp_get_parameter_values(target_paths: list[str]) -> str:
         "soapenc": SOAP_ENC,
         "xsd": XSD,
         "xsi": XSI,
-        "cwmp": CWMP
+        "cwmp": CWMP,
     }
 
     # Generate a new envelope from scratch
@@ -432,15 +475,17 @@ def generate_cwmp_get_parameter_values(target_paths: list[str]) -> str:
     cwmp_id = etree.SubElement(header, f"{{{CWMP}}}ID")
     cwmp_id.set(f"{{{SOAP_ENV}}}mustUnderstand", "1")
     cwmp_id.text = "1"
-    
+
     body = etree.SubElement(root, f"{{{SOAP_ENV}}}Body")
     gpv = etree.SubElement(body, f"{{{CWMP}}}GetParameterValues")
-    
+
     param_names = etree.SubElement(gpv, "ParameterNames")
     param_names.set(f"{{{SOAP_ENC}}}arrayType", f"xsd:string[{len(target_paths)}]")
-    
+
     for path in target_paths:
         string_elem = etree.SubElement(param_names, "string")
         string_elem.text = path
-        
-    return etree.tostring(root, pretty_print=True, encoding="UTF-8", xml_declaration=True).decode("utf-8")
+
+    return etree.tostring(
+        root, pretty_print=True, encoding="UTF-8", xml_declaration=True
+    ).decode("utf-8")
