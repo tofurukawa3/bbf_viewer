@@ -1,5 +1,8 @@
 node_modules/
+frontend/node_modules/
 .venv/
+backend/.venv/
+translator/venv/
 venv/
 data/
 e2e/playwright-report/

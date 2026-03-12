@@ -243,7 +243,7 @@ function App() {
           </div>
         )}
 
-        {cwmpXml && <CwmpPreview xmlPayload={cwmpXml} />}
+        <CwmpPreview xmlPayload={cwmpXml} viewMode={viewMode} />
       </div>
     </div>
   )

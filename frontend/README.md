@@ -6,7 +6,7 @@ ReactとViteを用いたSPA (Single Page Application) です。
 
 - **Viewモード / Editモード**: 権限に応じた2つの閲覧モード。
 - **データモデルツリー表示**: 膨大なパラメータをモダンで高速なツリーコンポーネントで表示。
-- **NETCONF/CWMP エディタ**: リアルタイムで `SetParameterValues` XMLペイロードを構築し、シンタックスハイライトして表示。
+- **CWMP エディタ**: リアルタイムで `SetParameterValues` XMLペイロードを構築し、シンタックスハイライトして表示。
 - **Lint機能**: XMLの構文チェック機能を提供。
 
 ## 開発環境

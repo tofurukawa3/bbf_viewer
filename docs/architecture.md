@@ -6,13 +6,13 @@
 
 ```mermaid
 graph LR
-    subgraph Frontend [Frontend (React + Vite)]
+    subgraph Frontend ["Frontend (React + Vite)"]
         A[UI Components] --> B[Tree Viewer]
         A --> C[XML Editor]
         A --> D[State Management]
     end
 
-    subgraph Backend [Backend (Python + FastAPI)]
+    subgraph Backend ["Backend (Python + FastAPI)"]
         E[API Endpoints] --> F[YANG/XML Parser]
         F --> G[Data Models]
     end

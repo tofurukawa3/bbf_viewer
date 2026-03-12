@@ -38,9 +38,9 @@ def save_cache(cache):
 def clean_text(text):
     if not text:
         return ""
-    # Strip unnecessary leading/trailing whitespace and tabs,
-    # but preserve logical newlines needed for paragraphs
-    return re.sub(r"^[ \t]+|[ \t]+$", "", text, flags=re.MULTILINE).strip()
+    # Replace all whitespace sequences (including newlines and tabs) with a single space, 
+    # then strip leading/trailing spaces to form a continuous plain text sentence.
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def translate_batch(translator, batch_texts, cache):
